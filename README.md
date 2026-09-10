@@ -1,4 +1,8 @@
-# Smart AI Project Template v2.1.3
+# Smart AI Project Template v2.2.1
+
+**New to this template? Start with [`GETTING_STARTED.md`](./GETTING_STARTED.md)** —
+a narrated, step-by-step walkthrough. This file is the denser architecture
+reference.
 
 A compact, agent-friendly project framework for turning requirements into controlled, verifiable implementation without turning the repository into a documentation maze.
 
@@ -16,7 +20,7 @@ smart-ai-project-template/
 ├── SPEC.md                   ← Current approved project truth: requirements, acceptance criteria, architecture, constraints, services, security, deployment, and important decisions.
 ├── TODO.md                   ← Current execution truth: phases, Mode, dependencies, revision state, acceptance coverage, tasks, blockers, and AUTO iteration budget.
 ├── WORKFLOW.md               ← Reusable multi-step procedures: intake, planning, phase start, MANUAL/AUTO execution, blocking/resume, replanning, completion, and adoption.
-├── TEMPLATE_VERSION          ← Template release number. This release is 2.1.3.
+├── TEMPLATE_VERSION          ← Template release number. This release is 2.2.1.
 │
 ├── .gitignore                ← Prevents local secrets, credentials, editor noise, dependencies, and build output from being committed.
 ├── .env.example              ← Safe environment-variable names and placeholders that may be committed. Never contains real secrets.
@@ -55,11 +59,11 @@ GLOBAL_CLAUDE.example.md      ← in this repository, at the root
                                  to use it, then edit it there.
 ```
 
-Claude Code loads `CLAUDE.md` from the working directory and every directory above
-it, so the project adapter must stay at the repository root. Moving it to
-`.claude/CLAUDE.md` would stop it loading — that path is only read for directories
-added with `--add-dir` — and the failure is silent, so nothing would tell you the
-capability mapping had disappeared.
+Current Claude Code docs confirm a project CLAUDE.md may live at either `./CLAUDE.md`
+or `./.claude/CLAUDE.md` — both load automatically. This template keeps it at the
+repository root as a convention (visible immediately, no reason to hide it in
+`.claude/`), not because the other location is broken. If you move it, run
+`/context` in a session to confirm it still appears under **Memory files**.
 
 ## Where information goes
 
@@ -115,6 +119,30 @@ stop on success, budget exhaustion, repeated failure, blocker, hard gate, or pro
 ```
 
 Ralph Loop does **not** define AUTO and does not override the framework. AUTO is the portable policy; Ralph Loop is only one Claude-specific way to execute bounded autonomous iterations.
+
+## Lifecycle skills — shipped with the template
+
+```text
+.claude/
+└── skills/
+    └── intake/
+        └── SKILL.md          ← /intake -- thin wrapper over WORKFLOW.md's Intake
+                                  and Context Normalization procedure.
+```
+
+These give Claude Code a shortcut for framework operations that already exist in
+`WORKFLOW.md`. A lifecycle skill contains no logic of its own -- it names the
+`WORKFLOW.md` procedure to run and passes along whatever you typed after the
+command. If you edit how intake behaves, edit `WORKFLOW.md`, not this file; the
+skill's whole job is pointing at the one place that behavior is actually defined.
+
+`disable-model-invocation: true` means Claude runs it only when you type `/intake`
+-- never on
+its own initiative. Other lifecycle skills (`/project-plan`, `/phase-review`, and
+the phase state-transition commands) are intentionally not built yet. Build one
+only once you've felt the friction of typing the equivalent request in full
+sentences -- `/intake` is the exception, since it's the one command guaranteed to
+run on day one of every project, so there was no friction to wait for.
 
 ## Optional additions — only when earned
 

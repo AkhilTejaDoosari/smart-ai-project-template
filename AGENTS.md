@@ -74,7 +74,7 @@ Priority:
 1. `SPEC.md` — requirements, acceptance criteria, architecture, constraints, budget, `Entry`, and `Rigor`.
 2. `TODO.md` — phases with status, mode, dependencies, revision state, acceptance coverage, agenda, tasks, and blockers.
 3. Code and tests — what is actually implemented and verified.
-4. `WORKFLOW.md` — reusable procedures and prompt sequences for intake, planning, implementation, review, verification, and project adoption.
+4. `WORKFLOW.md` — reusable multi-step procedures for intake, planning, implementation, review, verification, and project adoption.
 5. Git history — historical evidence, not current project truth.
 
 ### Rule vs Procedure

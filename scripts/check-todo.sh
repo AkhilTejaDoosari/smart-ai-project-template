@@ -385,8 +385,8 @@ awk -v spec="$SPEC_FILE" -v todo="$TODO_FILE" -v spec_status="$SPEC_STATUS" -v s
         }
 
         if ((status[p] == "In Progress" || status[p] == "Blocked" || status[p] == "Done") &&
-            status[d] == "Not Started")
-          issue(phase_label(p) " is " status[p] " but dependency Phase " d " is Not Started")
+            status[d] != "Done")
+          issue(phase_label(p) " is " status[p] " but dependency Phase " d " is " status[d] " (must be Done)")
       }
 
       for (p in phase_exists) {

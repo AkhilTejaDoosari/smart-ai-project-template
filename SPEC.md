@@ -82,15 +82,24 @@ APPROVED rev 2
 
 ### Material Changes
 
-Materiality is defined mechanically. A change is material if and only if it changes:
+A change is material when it affects what, how, or where the project must be built
+or operated — any change with semantic effect on implementation, not just changes
+to a fixed list of sections. A pure typo, wording clarification, or formatting fix
+with no semantic effect is not material.
 
-- §3 Requirements
-- §4 Acceptance Criteria
-- §7 Architecture
-- §10 External Services and Dependencies
-- `Monthly budget USD` in §1
+Sections most likely to be material: §3 Requirements, §4 Acceptance Criteria, §7
+Architecture, §9 Data and State, §10 External Services and Dependencies, §12
+Security, §13 Deployment and Operations, and `Monthly budget USD` in §1. This list
+names where material changes usually occur; it does not exempt any other section.
+Changing §12 Security from `N/A` to `YES` and adding real security requirements is
+material, for example, even though Security is not one of the five sections a
+narrower rule once singled out.
 
-No other section change affects approval state.
+**Known limitation:** `check-spec.sh` cannot detect materiality by itself. It has
+no memory of what the spec said before this edit, so it cannot tell a material
+rewrite of Security from a typo fix in the same section. Determining materiality is
+a human judgment call at the approval gate (§1's Human/Engineering Gate), not a
+mechanical check — the mechanical gate can enforce structure, not intent.
 
 A material change to an `APPROVED` specification requires:
 
@@ -631,6 +640,10 @@ The check must fail when:
 - any `Variable-Cost Risk` is not `LOW`, `MEDIUM`, or `HIGH`
 - any `MEDIUM` or `HIGH` row has empty `Pricing Notes`
 - the summed service cost exceeds `Monthly budget USD`
+- `Entry` is not `NEW` or `ADOPT`
+- `Rigor` is not `LEAN`, `STANDARD`, or `STRICT`
+- `Status` is `APPROVED` while `Spec revision` is `0` (approval was not
+  incremented; use `scripts/approve-spec.sh` rather than a manual edit)
 
 ### Human / Engineering Gate
 

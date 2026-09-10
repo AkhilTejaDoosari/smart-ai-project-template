@@ -1,6 +1,6 @@
 # WORKFLOW.md
 
-Reusable procedures and prompt sequences.
+Reusable multi-step procedures.
 
 Permanent rules belong in `AGENTS.md`.
 Project truth belongs in `SPEC.md`.
@@ -12,7 +12,7 @@ It does not redefine rules already owned by `AGENTS.md`.
 
 ---
 
-## 1. Start or Resume Work
+## Start or Resume Work
 
 At the beginning of a new session:
 
@@ -29,7 +29,7 @@ already define it.
 
 ---
 
-## 2. Intake and Context Normalization
+## Intake and Context Normalization
 
 Intake may begin from one or more sources:
 
@@ -82,7 +82,7 @@ Do not mark the specification `APPROVED` during normalization.
 
 ---
 
-## 3. NEW Project Procedure
+## New Project Procedure
 
 Use when `Entry: NEW`.
 
@@ -95,14 +95,14 @@ Use when `Entry: NEW`.
 7. record important decisions and rejected alternatives
 8. resolve blocking open questions
 9. plan phases in `TODO.md`
-10. run the specification approval procedure (§5)
-11. start the first eligible phase (§7)
+10. run the Specification Approval Procedure
+11. start the first eligible phase using the Start Phase Procedure
 
 Do not create application code before the specification is approved.
 
 ---
 
-## 4. ADOPT Existing Repository Procedure
+## Adopt Existing Repository Procedure
 
 Use when `Entry: ADOPT`.
 
@@ -131,7 +131,7 @@ Do not force an adopted project to resemble the template.
 
 ---
 
-## 5. Specification Approval Procedure
+## Specification Approval Procedure
 
 `bash scripts/check-spec.sh` answers:
 
@@ -153,16 +153,16 @@ Continue only when it exits `0`.
 
 Review the human gate defined in the `Approval` section of `SPEC.md`.
 
-If approved:
-
-1. increment `Spec revision` by exactly `1`
-2. change `Status` to `APPROVED`
-3. save the file
-4. run:
+If approved, run:
 
 ```bash
-bash scripts/check-spec.sh
+bash scripts/approve-spec.sh
 ```
+
+Running this script *is* the approval. It re-checks readiness, then atomically
+increments `Spec revision` by exactly `1` and sets `Status` to `APPROVED` in one
+step. There is no separate hand edit of `Spec revision` and `Status` to get
+half-right — that two-field manual edit is exactly what this script replaces.
 
 The approval transition depends on specification integrity, not on the current code,
 test, or build state. A red implementation may be the reason the newly approved
@@ -173,7 +173,7 @@ project truth.
 
 ---
 
-## 6. Planning Phases
+## Planning Procedure
 
 Planning may occur while `SPEC.md` is `DRAFT`.
 
@@ -211,7 +211,7 @@ implementation begins.
 
 ---
 
-## 7. Start Phase Procedure
+## Start Phase Procedure
 
 A phase may start only when the start rules in `AGENTS.md` are satisfied.
 
@@ -250,7 +250,7 @@ Do not change `Completed against`.
 
 ---
 
-## 8. MANUAL Phase Execution
+## Manual Phase Execution Procedure
 
 For a MANUAL phase:
 
@@ -261,14 +261,14 @@ For a MANUAL phase:
 5. use `Blocker` when progress cannot continue
 6. stop at human gates defined by `AGENTS.md`
 7. perform required review
-8. run the completion procedure (§13)
+8. run the Complete Phase Procedure
 
 MANUAL means supervised decision boundaries, not step-by-step permission for every
 safe edit.
 
 ---
 
-## 9. AUTO Phase Execution
+## Auto Phase Execution Procedure
 
 AUTO executes safe, in-scope work without intermediate approval.
 
@@ -282,6 +282,16 @@ At the start of a human-authorized autonomous run:
 4. continue through safe tasks while remaining inside the approved phase boundaries
 
 The iteration budget limits one uninterrupted autonomous run.
+
+The run-local counter is not durable project state — it lives only in the current
+agent session, and `TODO.md` records only the budget, not how many iterations have
+been used. This is deliberate rather than an oversight: if the session ends or
+context resets mid-run, the autonomous run is over. A context reset during AUTO
+always terminates that run; resuming afterward requires the human-authorized
+resume below, which starts a fresh run at iteration `0`. Do not add an
+"iterations used" field to `TODO.md` to work around this — a persisted counter
+would let a restarted session claim it remembers a partial run it cannot actually
+verify.
 
 A human-authorized resume begins a new autonomous run and resets the run-local
 counter. An AUTO agent may not authorize or perform its own resume after a stop
@@ -311,13 +321,13 @@ AUTO may:
 - move `In Progress` → `Blocked`
 
 Clearing `Blocker` and moving `Blocked` → `In Progress` occur only as part of a
-human-authorized resume (§11).
+human-authorized resume through the Resume Phase Procedure.
 
 AUTO may not perform the `Done` transition.
 
 ---
 
-## 10. Block Phase Procedure
+## Block Phase Procedure
 
 When progress cannot continue:
 
@@ -347,7 +357,7 @@ Do not change:
 
 ---
 
-## 11. Resume Blocked Phase
+## Resume Phase Procedure
 
 A blocked phase resumes only after human authorization.
 
@@ -384,7 +394,7 @@ run-local iteration counter to `0`.
 
 ---
 
-## 12. Replan or Remove an Active Phase
+## Replan or Remove Phase Procedure
 
 Any active phase being replanned must remain `Status: Blocked` while replanning is
 in progress. The schema has no separate stopped or replanning status.
@@ -400,15 +410,15 @@ must change:
 2. stop AUTO execution
 3. report why the phase cannot continue as defined
 4. human reviews the required change
-5. if project truth must change, follow the specification-change procedure (§15)
+5. if project truth must change, follow the Change Approved Specification Procedure
 6. edit the phase only outside AUTO execution while it remains `Blocked`
-7. resume only through the human-authorized resume procedure (§11)
+7. resume only through the Resume Phase Procedure
 
 ### MANUAL
 
 A MANUAL phase that requires replanning also moves to `Blocked` first.
 
-After human authorization, edit it while blocked and resume through §11.
+After human authorization, edit it while blocked and resume through the Resume Phase Procedure.
 
 `Defined against` remains frozen even when the phase is replanned.
 
@@ -438,7 +448,7 @@ Git preserves the historical existence of the removed phase.
 
 ---
 
-## 13. Complete Phase Procedure
+## Complete Phase Procedure
 
 A phase becomes `Done` only through this procedure.
 
@@ -504,7 +514,7 @@ It must never be called by `scripts/validate.sh`.
 
 ---
 
-## 14. Review and Verification Procedure
+## Review and Verification Procedure
 
 For work requiring review under `AGENTS.md`:
 
@@ -526,7 +536,7 @@ Do not substitute review for validation or validation for acceptance verificatio
 
 ---
 
-## 15. Change an Approved Specification
+## Change Approved Specification Procedure
 
 When an approved specification requires a material change:
 
@@ -565,7 +575,7 @@ Revision mismatch is a re-verification trigger at completion.
 
 ---
 
-## 16. Validation Procedures
+## Validation Procedures
 
 ### Normal Validation
 
@@ -618,7 +628,7 @@ to inspect TODO structure and cross-file state invariants.
 
 ---
 
-## 17. Context Reset Procedure
+## Context Reset Procedure
 
 When a session becomes large, stale, or unfocused:
 
@@ -634,50 +644,3 @@ When a session becomes large, stale, or unfocused:
 
 Do not carry entire prior conversations forward as project state.
 
----
-
-## 18. Reusable Prompt Sequences
-
-These are starting instructions, not additional rules.
-
-### Intake
-
-```text
-Normalize the supplied context into the existing SPEC.md structure.
-Resolve conflicts where evidence permits, surface unresolved conflicts, and use
-{{TBD: ...}} only where project truth is genuinely unknown. Do not implement code.
-```
-
-### Plan
-
-```text
-Using the current SPEC.md, create or update TODO.md using the existing
-Phase N → Agenda → Acceptance Coverage → To-do list pattern. Ensure every AC is owned
-by at least one phase, choose per-phase MANUAL/AUTO mode, and add only real
-dependencies. Do not start a phase.
-```
-
-### Execute Phase
-
-```text
-Execute the selected phase under AGENTS.md and WORKFLOW.md. Work only inside its
-approved scope, update task state as work becomes true, validate incrementally, and
-stop when a human gate, blocker, or AUTO stop condition is reached.
-```
-
-### Review
-
-```text
-Review the completed implementation against the phase Acceptance Coverage,
-AGENTS.md engineering rules, and the current approved SPEC.md. Report only findings
-that materially affect correctness, security, maintainability, scope, or completion.
-```
-
-### Verify Completion
-
-```text
-Verify the phase against the current wording of every AC it owns. If the phase's
-Defined against revision differs from the current SPEC revision, re-verify every
-owned AC. Run required validation and review, then use the authorized completion
-procedure. Do not edit Status: Done or Completed against manually.
-```

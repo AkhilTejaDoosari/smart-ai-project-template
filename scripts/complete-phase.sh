@@ -5,7 +5,7 @@
 # Usage:
 #   bash scripts/complete-phase.sh <phase-number>
 #
-# Human/engineering acceptance happens before invocation (WORKFLOW.md §13.A).
+# Human/engineering acceptance happens before invocation (WORKFLOW.md, Complete Phase Procedure, part A).
 # This script verifies deterministic completion gates and atomically writes:
 #   Status: Done
 #   Completed against: Spec revision N
@@ -18,6 +18,7 @@ SPEC_FILE="$ROOT_DIR/SPEC.md"
 TODO_FILE="$ROOT_DIR/TODO.md"
 VALIDATE_SCRIPT="$SCRIPT_DIR/validate.sh"
 CHECK_TODO_SCRIPT="$SCRIPT_DIR/check-todo.sh"
+CHECK_FRAMEWORK_SCRIPT="$SCRIPT_DIR/check-framework.sh"
 LOCK_DIR="$ROOT_DIR/.todo-state.lock"
 TMP_FILE=""
 VALIDATION_OUTPUT=""
@@ -53,6 +54,7 @@ PHASE_NUMBER="$1"
 [[ -f "$TODO_FILE" ]] || fail "missing TODO.md"
 [[ -f "$VALIDATE_SCRIPT" ]] || fail "missing scripts/validate.sh"
 [[ -f "$CHECK_TODO_SCRIPT" ]] || fail "missing scripts/check-todo.sh"
+[[ -f "$CHECK_FRAMEWORK_SCRIPT" ]] || fail "missing scripts/check-framework.sh"
 
 # Serialize TODO state transitions so parallel phase completions cannot overwrite each other.
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
@@ -112,6 +114,17 @@ if [[ "$STATUS" == "Done" ]]; then
 
   (( COMPLETED_REV >= DEFINED_REV )) \
     || fail "Phase $PHASE_NUMBER is Done but completion revision predates its defined revision"
+
+  # A Done phase's own two fields can be locally self-consistent (Completed >=
+  # Defined) while still being corrupt relative to current project state -- for
+  # example a SPEC that has since been broken (a required section deleted) while
+  # TODO.md itself remains internally fine. TODO-only re-verification would miss
+  # that. Run the full framework structural check -- check-todo.sh always,
+  # check-spec.sh too when SPEC is APPROVED -- before declaring the no-op safe.
+  info "Re-verifying repository integrity before treating Phase $PHASE_NUMBER as already Done..."
+  if ! bash "$CHECK_FRAMEWORK_SCRIPT" >/dev/null 2>&1; then
+    fail "Phase $PHASE_NUMBER reports Done, but scripts/check-framework.sh currently fails; repository state is inconsistent. Run 'bash scripts/check-framework.sh' directly to see why."
+  fi
 
   pass "Phase $PHASE_NUMBER is already Done (Spec revision $COMPLETED_REV); no changes made."
   exit 0
@@ -188,17 +201,32 @@ VALIDATION_RC=$?
 set -e
 cat "$VALIDATION_OUTPUT"
 
-[[ "$VALIDATION_RC" -eq 0 ]] \
-  || fail "scripts/validate.sh failed with exit code $VALIDATION_RC; TODO.md was not modified"
-
-# validate.sh v1.3 exits 0 when no project checks are configured; AGENTS.md says
-# an empty check set is not a passing build, so completion rejects that state.
-if grep -Fq 'WARNING: no validation commands configured.' "$VALIDATION_OUTPUT"; then
-  fail "scripts/validate.sh has no project checks configured; an empty validation set cannot complete a phase"
+# validate.sh exit codes: 0 = passed, 1 = a check failed, 2 = no project checks
+# configured. Both 1 and 2 block completion; only 0 is a genuine pass. This reads
+# the contract from the exit code alone, never from matching output text.
+if [[ "$VALIDATION_RC" -eq 2 ]]; then
+  fail "scripts/validate.sh has no project checks configured (exit 2); an empty validation set cannot complete a phase"
+elif [[ "$VALIDATION_RC" -ne 0 ]]; then
+  fail "scripts/validate.sh failed with exit code $VALIDATION_RC; TODO.md was not modified"
 fi
 rm -f "$VALIDATION_OUTPUT"
 VALIDATION_OUTPUT=""
 pass "Project validation passed"
+
+# TOCTOU guard: project validation commands run arbitrary code and can take a long
+# time. SPEC.md was captured before validation started; re-read it now and require
+# it to be byte-identical on the two fields that matter, so a project check (or a
+# concurrent edit) that flips Status or bumps revision mid-run cannot silently
+# authorize a completion that the original approved state never actually covered.
+RECHECK_STATUS_COUNT="$(grep -Ec '^\*\*Status:\*\* (DRAFT|APPROVED)$' "$SPEC_FILE" || true)"
+[[ "$RECHECK_STATUS_COUNT" -eq 1 ]] || fail "SPEC.md Status became unreadable during validation; TODO.md was not modified"
+RECHECK_STATUS="$(sed -n 's/^\*\*Status:\*\* \(DRAFT\|APPROVED\)$/\1/p' "$SPEC_FILE")"
+[[ "$RECHECK_STATUS" == "$SPEC_STATUS" ]]   || fail "SPEC.md Status changed from $SPEC_STATUS to $RECHECK_STATUS during validation; rerun completion against current project state. TODO.md was not modified"
+
+RECHECK_REV_COUNT="$(grep -Ec '^\*\*Spec revision:\*\* [0-9]+$' "$SPEC_FILE" || true)"
+[[ "$RECHECK_REV_COUNT" -eq 1 ]] || fail "SPEC.md Spec revision became unreadable during validation; TODO.md was not modified"
+RECHECK_REV="$(sed -n 's/^\*\*Spec revision:\*\* \([0-9][0-9]*\)$/\1/p' "$SPEC_FILE")"
+[[ "$RECHECK_REV" == "$SPEC_REV" ]]   || fail "SPEC.md Spec revision changed from $SPEC_REV to $RECHECK_REV during validation; rerun completion against current project state. TODO.md was not modified"
 
 info "Invocation attests that the WORKFLOW.md human/engineering completion gate was completed."
 

@@ -313,6 +313,32 @@ awk '
     next
   }
 
+  current_section == 1 && /^\*\*Entry:\*\*/ {
+    entry_field_count++
+    entry_raw = $0
+    sub(/^\*\*Entry:\*\*[[:space:]]*/, "", entry_raw)
+
+    if (entry_raw == "NEW" || entry_raw == "ADOPT") {
+      entry_valid = 1
+    } else if (index($0, "{{TBD:") == 0) {
+      entry_invalid++
+    }
+    next
+  }
+
+  current_section == 1 && /^\*\*Rigor:\*\*/ {
+    rigor_field_count++
+    rigor_raw = $0
+    sub(/^\*\*Rigor:\*\*[[:space:]]*/, "", rigor_raw)
+
+    if (rigor_raw == "LEAN" || rigor_raw == "STANDARD" || rigor_raw == "STRICT") {
+      rigor_valid = 1
+    } else if (index($0, "{{TBD:") == 0) {
+      rigor_invalid++
+    }
+    next
+  }
+
   # Conditional applicability. A {{TBD: ...}} applicability line is already
   # represented by the reserved-marker failure, so do not double-report it.
   is_conditional_section(current_section) && /^\*\*Applicability:\*\*/ {
@@ -436,6 +462,23 @@ awk '
       add_issue("§1 must contain exactly one Monthly budget USD field")
     else if (budget_invalid > 0 || !budget_valid)
       add_issue("Monthly budget USD must match ^[0-9]+\\.[0-9]{2}$")
+
+    if (entry_field_count != 1)
+      add_issue("§1 must contain exactly one Entry field")
+    else if (entry_invalid > 0 || !entry_valid)
+      add_issue("§1 Entry must be NEW or ADOPT")
+
+    if (rigor_field_count != 1)
+      add_issue("§1 must contain exactly one Rigor field")
+    else if (rigor_invalid > 0 || !rigor_valid)
+      add_issue("§1 Rigor must be LEAN, STANDARD, or STRICT")
+
+    # A fresh project starts DRAFT at revision 0; the approval procedure requires
+    # incrementing revision by exactly 1 on every DRAFT-to-APPROVED transition.
+    # An APPROVED spec can therefore never legitimately sit at revision 0 -- that
+    # state means the increment step of approval was skipped.
+    if (spec_status == "APPROVED" && revision_valid && spec_revision < 1)
+      add_issue("§1 Status is APPROVED but Spec revision is 0; approval must increment the revision to at least 1 (see Approval)")
 
     # Conditional sections 9-13.
     for (s = 9; s <= 13; s++) {
