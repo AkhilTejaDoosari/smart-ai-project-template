@@ -1,0 +1,34 @@
+# Local environment — never commit real values
+.env
+.env.*
+!.env.example
+
+# Credentials
+*.pem
+*.key
+*.p12
+.netrc
+
+# Claude Code local-only overrides
+.claude/settings.local.json
+
+# Framework transient state
+.todo-state.lock/
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Dependencies / build output
+node_modules/
+dist/
+build/
+coverage/
+.next/
+.venv/
+__pycache__/
+*.tsbuildinfo
