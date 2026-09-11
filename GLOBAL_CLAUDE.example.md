@@ -1,4 +1,4 @@
-# Global Claude Code Preferences — Example
+# Global Claude Code Preferences - Example
 
 **This file is not loaded from this repository.** It is a distributable example of a
 *personal* Claude Code memory file. Nothing here applies to this project unless you
@@ -37,8 +37,8 @@ in `SPEC.md` and `TODO.md`; agent policy belongs in `AGENTS.md`.
 - Verify that the original failure no longer occurs.
 - Take a Git snapshot before a deep investigation.
 - For a long or uncertain investigation, a temporary `DEBUG.md` may record evidence,
-  hypotheses, ruled-out causes, root cause, fix, and verification. Remove it when the
-  investigation is over.
+ hypotheses, ruled-out causes, root cause, fix, and verification. Remove it when the
+ investigation is over.
 
 ## Python
 
@@ -53,9 +53,9 @@ Use `uv` by default for dependency and environment management.
 ## Terminal and automation
 
 - Prefer reliable automation over repetitive manual copy-paste when it makes the task
-  safer and simpler.
+ safer and simpler.
 - For substantial terminal or debugging work, prefer one coherent script with
-  validation, checks, and clear failure handling.
+ validation, checks, and clear failure handling.
 - Never print, expose, or commit secrets unnecessarily.
 
 ## Current documentation

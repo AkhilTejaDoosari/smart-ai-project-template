@@ -1,6 +1,6 @@
 # Smart AI Project Template v2.2.1
 
-**New to this template? Start with [`GETTING_STARTED.md`](./GETTING_STARTED.md)** —
+**New to this template? Start with [`GETTING_STARTED.md`](./GETTING_STARTED.md)** -
 a narrated, step-by-step walkthrough. This file is the denser architecture
 reference.
 
@@ -60,7 +60,7 @@ GLOBAL_CLAUDE.example.md      ← in this repository, at the root
 ```
 
 Current Claude Code docs confirm a project CLAUDE.md may live at either `./CLAUDE.md`
-or `./.claude/CLAUDE.md` — both load automatically. This template keeps it at the
+or `./.claude/CLAUDE.md` - both load automatically. This template keeps it at the
 repository root as a convention (visible immediately, no reason to hide it in
 `.claude/`), not because the other location is broken. If you move it, run
 `/context` in a session to confirm it still appears under **Memory files**.
@@ -120,7 +120,7 @@ stop on success, budget exhaustion, repeated failure, blocker, hard gate, or pro
 
 Ralph Loop does **not** define AUTO and does not override the framework. AUTO is the portable policy; Ralph Loop is only one Claude-specific way to execute bounded autonomous iterations.
 
-## Lifecycle skills — shipped with the template
+## Lifecycle skills - shipped with the template
 
 ```text
 .claude/
@@ -144,7 +144,7 @@ only once you've felt the friction of typing the equivalent request in full
 sentences -- `/intake` is the exception, since it's the one command guaranteed to
 run on day one of every project, so there was no friction to wait for.
 
-## Optional additions — only when earned
+## Optional additions - only when earned
 
 These are **not** part of the base template. Add them only when a real project needs them.
 
@@ -226,7 +226,7 @@ ask   → STOP, a human confirms, then it may proceed
 
 A hard human gate is an `ask`, not a `deny`. Rules are evaluated deny → ask → allow
 and the first match wins regardless of specificity, so a broad deny cannot carry an
-allowlist exception — denying `Bash(aws *)` would also block `aws s3 ls` during
+allowlist exception - denying `Bash(aws *)` would also block `aws s3 ls` during
 ordinary debugging, with no way to authorize it from inside a session. Only secret
 reads and edits are denied outright; destructive infrastructure, publish, and history
 operations are `ask`.
@@ -238,22 +238,22 @@ which is what makes them usable as gates during an AUTO phase.
 path segment. `Read(.env.*)` would therefore also match `.env.example` and lock the
 template out of the one env file that is meant to be readable, so the denies name the
 secret-bearing files individually. For the same reason `~/.aws/` and `~/.ssh/` are not
-denied wholesale — that would block harmless config and `known_hosts` during ordinary
-work — only the credential and private-key paths inside them.
+denied wholesale - that would block harmless config and `known_hosts` during ordinary
+work - only the credential and private-key paths inside them.
 
 Three caveats worth knowing before you trust a rule:
 
 - **Bash argument patterns are guidance, not a boundary.** A pattern matching on flags
-  or URLs fails on reordered options, variables, or extra spaces, and a deny rule does
-  not match the same program invoked as `/bin/rm` or inside `sh -c`. Treat these rules
-  as a speed bump; `AGENTS.md` and the completion gates remain the real control.
-- **`Write(path)` rules are silently ignored** — file-permission checks only consult
-  `Edit(path)` and `Read(path)`. A `Read` deny also covers Edit and Write on the same
-  path, but not NotebookEdit, which is why each secret file is listed under both.
+ or URLs fails on reordered options, variables, or extra spaces, and a deny rule does
+ not match the same program invoked as `/bin/rm` or inside `sh -c`. Treat these rules
+ as a speed bump; `AGENTS.md` and the completion gates remain the real control.
+- **`Write(path)` rules are silently ignored** - file-permission checks only consult
+ `Edit(path)` and `Read(path)`. A `Read` deny also covers Edit and Write on the same
+ path, but not NotebookEdit, which is why each secret file is listed under both.
 - **A trailing `:*` covers the bare command too.** `Bash(npm publish:*)` is equivalent
-  to `Bash(npm publish *)` and matches `npm publish` on its own, so one rule per
-  operation is enough. This holds only while the trailing wildcard is the rule's only
-  wildcard.
+ to `Bash(npm publish *)` and matches `npm publish` on its own, so one rule per
+ operation is enough. This holds only while the trailing wildcard is the rule's only
+ wildcard.
 
 Verify these against the current Claude Code permission documentation the first time
 you rely on them; the model has changed across releases.

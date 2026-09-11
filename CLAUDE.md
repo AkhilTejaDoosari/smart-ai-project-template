@@ -38,11 +38,11 @@ verification work.
 ## AUTO execution
 
 - When a `TODO.md` phase has `Mode: AUTO`, `ralph-loop` may be used as the Claude
-  Code execution engine when available and appropriate.
+ Code execution engine when available and appropriate.
 - Ralph Loop remains bounded by that phase's `AUTO iteration budget` and every AUTO
-  stop condition and hard human gate in `AGENTS.md`.
+ stop condition and hard human gate in `AGENTS.md`.
 - Ralph Loop cannot authorize its own resume, change protected AUTO fields, bypass
-  validation, or mark a phase `Done` outside the required completion procedure.
+ validation, or mark a phase `Done` outside the required completion procedure.
 
 AUTO is portable policy defined in `AGENTS.md`. Ralph Loop is only one Claude-specific
 way to execute bounded autonomous iterations.

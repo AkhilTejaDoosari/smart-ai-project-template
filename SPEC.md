@@ -51,8 +51,8 @@ top-level heading and the applicability line.
 
 ### Status
 
-- `DRAFT` — the specification is being created or changed.
-- `APPROVED` — the current specification is authorized for implementation.
+- `DRAFT` - the specification is being created or changed.
+- `APPROVED` - the current specification is authorized for implementation.
 
 Do not begin substantial implementation while `Status` is `DRAFT`.
 
@@ -64,7 +64,7 @@ Do not begin substantial implementation while `Status` is `DRAFT`.
 - Each transition from `DRAFT` to `APPROVED` increments the revision by exactly `1`.
 - Editing while `DRAFT` does not increment the revision.
 - Returning an approved specification to `DRAFT` neither increments nor decrements
-  it.
+ it.
 - `TODO.md` records the revision each phase began under and completed under.
 
 ```text
@@ -83,7 +83,7 @@ APPROVED rev 2
 ### Material Changes
 
 A change is material when it affects what, how, or where the project must be built
-or operated — any change with semantic effect on implementation, not just changes
+or operated - any change with semantic effect on implementation, not just changes
 to a fixed list of sections. A pure typo, wording clarification, or formatting fix
 with no semantic effect is not material.
 
@@ -99,7 +99,7 @@ narrower rule once singled out.
 no memory of what the spec said before this edit, so it cannot tell a material
 rewrite of Security from a typo fix in the same section. Determining materiality is
 a human judgment call at the approval gate (§1's Human/Engineering Gate), not a
-mechanical check — the mechanical gate can enforce structure, not intent.
+mechanical check - the mechanical gate can enforce structure, not intent.
 
 A material change to an `APPROVED` specification requires:
 
@@ -160,16 +160,16 @@ whether a pending change is unrelated enough.
 
 ### Entry
 
-- `NEW` — build a new project from this specification.
-- `ADOPT` — bring an existing repository under the framework while preserving useful
-  existing structure and behavior.
+- `NEW` - build a new project from this specification.
+- `ADOPT` - bring an existing repository under the framework while preserving useful
+ existing structure and behavior.
 
 ### Rigor
 
-- `LEAN` — critical-path verification with minimal ceremony.
-- `STANDARD` — automated tests, review, CI, and core integration/E2E verification.
-- `STRICT` — stronger security, deterministic validation, critical E2E coverage, and
-  operational/recovery requirements.
+- `LEAN` - critical-path verification with minimal ceremony.
+- `STANDARD` - automated tests, review, CI, and core integration/E2E verification.
+- `STRICT` - stronger security, deterministic validation, critical E2E coverage, and
+ operational/recovery requirements.
 
 Rigor changes verification depth, not architecture complexity.
 
@@ -210,15 +210,15 @@ Requirements define observable behavior the finished system must provide.
 
 ### Functional Requirements
 
-- `REQ-001` — {{TBD: functional requirement}}
-- `REQ-002` — {{TBD: functional requirement}}
+- `REQ-001` - {{TBD: functional requirement}}
+- `REQ-002` - {{TBD: functional requirement}}
 
 ### Non-Functional Requirements
 
 A non-functional requirement must be measurable or observable enough to have
 acceptance criteria.
 
-- `NFR-001` — {{TBD: measurable non-functional requirement}}
+- `NFR-001` - {{TBD: measurable non-functional requirement}}
 
 If a condition cannot be expressed as observable system behavior, it belongs in §6
 Constraints instead.
@@ -235,7 +235,7 @@ Acceptance criteria define observable pass/fail conditions.
 Every `REQ-*` and every `NFR-*` must be covered by at least one `AC-*`. One
 acceptance criterion may cover multiple requirements.
 
-### AC-001 — {{TBD: criterion name}}
+### AC-001 - {{TBD: criterion name}}
 
 **Satisfies:** `REQ-001`
 
@@ -248,7 +248,7 @@ When:
 Then:
 - {{TBD: observable result}}
 
-### AC-002 — {{TBD: criterion name}}
+### AC-002 - {{TBD: criterion name}}
 
 **Satisfies:** `REQ-002`, `NFR-001`
 
@@ -537,9 +537,9 @@ Only project-specific security truth belongs here.
 
 ### Environments
 
-- Local — {{TBD: purpose}}
-- Preview / Staging — {{TBD: purpose}}
-- Production — {{TBD: purpose}}
+- Local - {{TBD: purpose}}
+- Preview / Staging - {{TBD: purpose}}
+- Production - {{TBD: purpose}}
 
 Remove environments that do not exist.
 
@@ -579,7 +579,7 @@ When a decision changes:
 - update `Alternatives Rejected`
 - update `Reason`
 - apply the §1 material-change rules when the decision alters §3, §4, §7, §10, or the
-  budget
+ budget
 
 Git preserves chronology.
 
@@ -597,7 +597,7 @@ When a question is resolved:
 
 1. move the resulting project truth into its authoritative section
 2. when meaningful alternatives were considered, add the decision and rejected
-   alternatives to §14
+ alternatives to §14
 3. remove the resolved question from this section
 
 Resolved questions do not remain here.
@@ -615,7 +615,7 @@ Approval has two gates.
 > Is the current `SPEC.md` mechanically ready to be approved?
 
 It may be run at any time while `Status: DRAFT`. A non-zero exit while drafting is
-expected until all mechanical conditions are satisfied — it is information, not a
+expected until all mechanical conditions are satisfied - it is information, not a
 build failure.
 
 A zero exit is required immediately before the human approval gate.
@@ -643,7 +643,7 @@ The check must fail when:
 - `Entry` is not `NEW` or `ADOPT`
 - `Rigor` is not `LEAN`, `STANDARD`, or `STRICT`
 - `Status` is `APPROVED` while `Spec revision` is `0` (approval was not
-  incremented; use `scripts/approve-spec.sh` rather than a manual edit)
+ incremented; use `scripts/approve-spec.sh` rather than a manual edit)
 
 ### Human / Engineering Gate
 

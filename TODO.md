@@ -12,7 +12,7 @@ Reference `AC-*` IDs from `SPEC.md`.
 
 ---
 
-### Phase 1 — {{TBD: phase name}}
+### Phase 1 - {{TBD: phase name}}
 
 ```text
 Status: Not Started
@@ -43,7 +43,7 @@ None
 
 ---
 
-### Phase 2 — {{TBD: phase name}}
+### Phase 2 - {{TBD: phase name}}
 
 ```text
 Status: Not Started
@@ -73,7 +73,7 @@ None
 
 ---
 
-### Phase 3 — {{TBD: phase name}}
+### Phase 3 - {{TBD: phase name}}
 
 ```text
 Status: Not Started

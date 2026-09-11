@@ -162,7 +162,7 @@ bash scripts/approve-spec.sh
 Running this script *is* the approval. It re-checks readiness, then atomically
 increments `Spec revision` by exactly `1` and sets `Status` to `APPROVED` in one
 step. There is no separate hand edit of `Spec revision` and `Status` to get
-half-right — that two-field manual edit is exactly what this script replaces.
+half-right - that two-field manual edit is exactly what this script replaces.
 
 The approval transition depends on specification integrity, not on the current code,
 test, or build state. A red implementation may be the reason the newly approved
@@ -283,13 +283,13 @@ At the start of a human-authorized autonomous run:
 
 The iteration budget limits one uninterrupted autonomous run.
 
-The run-local counter is not durable project state — it lives only in the current
+The run-local counter is not durable project state - it lives only in the current
 agent session, and `TODO.md` records only the budget, not how many iterations have
 been used. This is deliberate rather than an oversight: if the session ends or
 context resets mid-run, the autonomous run is over. A context reset during AUTO
 always terminates that run; resuming afterward requires the human-authorized
 resume below, which starts a fresh run at iteration `0`. Do not add an
-"iterations used" field to `TODO.md` to work around this — a persisted counter
+"iterations used" field to `TODO.md` to work around this - a persisted counter
 would let a restarted session claim it remembers a partial run it cannot actually
 verify.
 
@@ -338,8 +338,8 @@ Status: Blocked
 ```
 
 2. replace `Blocker: None` with a concise description of:
-   - what prevents progress
-   - what decision, credential, dependency, condition, or external event is required
+ - what prevents progress
+ - what decision, credential, dependency, condition, or external event is required
 3. report the stop condition
 
 If the blocker is AUTO iteration-budget exhaustion or another AUTO stop condition,
@@ -436,8 +436,8 @@ Before removal:
 
 1. if it is `In Progress`, move it to `Blocked`
 2. reassign every owned `AC-*` to another phase, or remove that AC through the
-   approved specification-change procedure when the requirement itself no longer
-   exists
+ approved specification-change procedure when the requirement itself no longer
+ exists
 3. update every phase that depends on the removed phase
 4. confirm `check-todo.sh` passes after the edit
 5. remove the phase from `TODO.md`
@@ -529,7 +529,7 @@ bash scripts/validate.sh
 ```
 
 6. verify required browser/E2E behavior when acceptance criteria require runtime
-   evidence
+ evidence
 7. retain concise completion evidence
 
 Do not substitute review for validation or validation for acceptance verification.
@@ -637,10 +637,10 @@ When a session becomes large, stale, or unfocused:
 3. preserve the current error or validation evidence
 4. discard failed exploratory paths once their conclusion is known
 5. restart from:
-   - `AGENTS.md`
-   - `SPEC.md`
-   - `TODO.md`
-   - relevant code only
+ - `AGENTS.md`
+ - `SPEC.md`
+ - `TODO.md`
+ - relevant code only
 
 Do not carry entire prior conversations forward as project state.
 

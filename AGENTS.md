@@ -55,7 +55,7 @@ work, security-sensitive work, major refactor, or anything with wide blast radiu
 - Confirm requirements and approach before substantial implementation when the phase mode requires approval (§6).
 - Decompose into coherent, verifiable units and implement incrementally.
 - Review is required before completion (§7).
-- Update current project truth when architecture, constraints, or approved decisions change — subject to the AUTO restrictions in §6.
+- Update current project truth when architecture, constraints, or approved decisions change - subject to the AUTO restrictions in §6.
 
 If uncertain between two sizes, start with the smaller classification and escalate
 when the actual blast radius grows.
@@ -71,11 +71,11 @@ Use the smallest set of current-state sources necessary for the task.
 
 Priority:
 
-1. `SPEC.md` — requirements, acceptance criteria, architecture, constraints, budget, `Entry`, and `Rigor`.
-2. `TODO.md` — phases with status, mode, dependencies, revision state, acceptance coverage, agenda, tasks, and blockers.
-3. Code and tests — what is actually implemented and verified.
-4. `WORKFLOW.md` — reusable multi-step procedures for intake, planning, implementation, review, verification, and project adoption.
-5. Git history — historical evidence, not current project truth.
+1. `SPEC.md` - requirements, acceptance criteria, architecture, constraints, budget, `Entry`, and `Rigor`.
+2. `TODO.md` - phases with status, mode, dependencies, revision state, acceptance coverage, agenda, tasks, and blockers.
+3. Code and tests - what is actually implemented and verified.
+4. `WORKFLOW.md` - reusable multi-step procedures for intake, planning, implementation, review, verification, and project adoption.
+5. Git history - historical evidence, not current project truth.
 
 ### Rule vs Procedure
 
@@ -248,9 +248,9 @@ structure because the template uses one.
 
 Use the `Rigor` level in `SPEC.md`.
 
-- `LEAN` — critical-path verification, minimal ceremony
-- `STANDARD` — meaningful automated tests, review, CI where useful, core integration and E2E coverage
-- `STRICT` — stronger security, deterministic validation, critical E2E coverage, operational and recovery considerations
+- `LEAN` - critical-path verification, minimal ceremony
+- `STANDARD` - meaningful automated tests, review, CI where useful, core integration and E2E coverage
+- `STRICT` - stronger security, deterministic validation, critical E2E coverage, operational and recovery considerations
 
 Rigor changes verification depth. It does not justify unnecessary architecture or
 documentation, and it never lowers the §8 validation requirement.
@@ -472,7 +472,7 @@ Work is complete only when all applicable conditions are true.
 
 ### Current Project Truth
 
-- When the work changes project truth, update `SPEC.md` — except during AUTO, where `SPEC.md` is read-only and the need to change it is a stop condition (§6).
+- When the work changes project truth, update `SPEC.md` - except during AUTO, where `SPEC.md` is read-only and the need to change it is a stop condition (§6).
 - When the work changes execution state, update `TODO.md`.
 - Do not write historical status prose that Git already records.
 
