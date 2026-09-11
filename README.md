@@ -261,3 +261,17 @@ you rely on them; the model has changed across releases.
 ## Design principle
 
 The template should **reduce model context, not consume it**. Keep permanent files small enough to stay useful, add project-specific artifacts only when they earn their place, and prefer stronger decisions and verification over more process.
+
+<!-- FRONTEND-STACK:BEGIN -->
+## Frontend capability stack
+
+For projects with a user-facing UI, this template uses a deliberate design workflow rather than one-shot page generation.
+
+- `frontend-design` — visual direction and design judgment.
+- shadcn MCP — standard component primitives and registry discovery.
+- 21st MCP — premium/reference component discovery.
+- Playwright — rendered visual and interaction verification.
+- Context7 — current framework and library documentation.
+
+Project MCPs live in `.mcp.json`, so native Claude and the isolated CCR Claude lane use the same project tooling while keeping their user profiles separate.
+<!-- FRONTEND-STACK:END -->

@@ -644,3 +644,21 @@ When a session becomes large, stale, or unfocused:
 
 Do not carry entire prior conversations forward as project state.
 
+<!-- FRONTEND-WORKFLOW:BEGIN -->
+## Frontend design loop
+
+### 1. Define
+Before coding, establish one design direction: product/audience, reference qualities, type hierarchy, semantic palette, spacing/density, radius/depth, imagery/icon style, and motion rules.
+
+### 2. Reuse before inventing
+Inspect the current design system and components. Prefer existing components first, shadcn second, and 21st when a more distinctive reference or component is genuinely useful.
+
+### 3. Build coherently
+Use one token system and one component language. Adapt imported code to local conventions rather than mixing raw styles from several libraries.
+
+### 4. Visual QA
+Render the actual application. Inspect at least one desktop and one mobile viewport plus important interaction states. Review hierarchy, alignment, whitespace, typography, contrast, overflow, responsive behavior, loading/empty/error states, focus/keyboard behavior, and motion.
+
+### 5. Refine
+Fix visible defects and re-render. A passing build is necessary but not sufficient for frontend completion.
+<!-- FRONTEND-WORKFLOW:END -->

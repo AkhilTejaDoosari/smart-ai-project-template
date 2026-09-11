@@ -55,3 +55,30 @@ and are not vendored into this repository.
 
 Project requirements, architecture, constraints, execution state, and progress belong
 in their authoritative files defined by `AGENTS.md`, not in this adapter.
+
+<!-- CLAUDE-FRONTEND-ADAPTER:BEGIN -->
+## Frontend capability routing
+
+For user-facing UI work:
+
+- Visual direction, typography, composition, color, hierarchy, interaction quality → `frontend-design`
+- Standard product primitives and registry search → `shadcn` MCP
+- Premium/reference component discovery → `21st` MCP
+- Browser rendering, responsive inspection, interaction checks, screenshots → `playwright`
+- Current framework/library behavior → `context7`
+
+Execution order for substantial frontend work:
+
+1. Establish one coherent visual direction with `frontend-design`.
+2. Inspect existing tokens and components.
+3. Reuse existing components where possible.
+4. Search shadcn for standard primitives.
+5. Search 21st only when a stronger reference/component materially improves the result.
+6. Adapt selected components to the project's own design system.
+7. Implement the smallest coherent screen or flow.
+8. Render with Playwright at desktop and mobile widths.
+9. Fix hierarchy, typography, spacing, contrast, overflow, responsiveness, interaction, and accessibility defects.
+10. Re-render before declaring completion.
+
+Do not add Motion or another component library merely because it is available. Add a visual dependency only when the approved design direction requires it.
+<!-- CLAUDE-FRONTEND-ADAPTER:END -->

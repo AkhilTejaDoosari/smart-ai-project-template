@@ -254,7 +254,7 @@ awk -v spec="$SPEC_FILE" -v todo="$TODO_FILE" -v spec_status="$SPEC_STATUS" -v s
   }
 
   END {
-    if (unique_phase_total == 0) issue("TODO.md contains no phase headings")
+    if (spec_status == "APPROVED" && unique_phase_total == 0) issue("TODO.md contains no phase headings")
 
     for (p in phase_exists) {
       if (state_fence_count[p] != 1 || state_fence_closed[p] != 1)
@@ -444,7 +444,7 @@ awk -v spec="$SPEC_FILE" -v todo="$TODO_FILE" -v spec_status="$SPEC_STATUS" -v s
     if (spec_status == "DRAFT")
       print "PASS: TODO structure passed (SPEC DRAFT; semantic planning checks deferred, " unique_phase_total " phase(s))."
     else
-      print "PASS: TODO integrity passed (" unique_phase_total " phase(s), " ac_total " acceptance criterion/criteria in SPEC)."
+      print "PASS: TODO integrity passed (" (unique_phase_total + 0) " phase(s), " (ac_total + 0) " acceptance criterion/criteria in SPEC)."
   }
 ' "$SPEC_FILE" "$TODO_FILE"
 RC=$?

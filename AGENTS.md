@@ -489,3 +489,19 @@ Do not say "should work", "probably fixed", or "looks good" when the result can 
 verified.
 
 Completion means verified, not merely implemented.
+
+<!-- FRONTEND-QUALITY-POLICY:BEGIN -->
+## Frontend quality policy
+
+Apply this section when the project has a user-facing interface.
+
+- Establish one explicit visual direction before substantial UI implementation: audience, mood, typography, palette, density, spacing, radius, depth, imagery, and motion language.
+- Use semantic design tokens. Do not scatter arbitrary colors, spacing, radii, shadows, or font decisions across components.
+- Inspect and reuse the project's existing component system before creating new primitives.
+- Search shadcn first for standard product primitives. Use 21st for stronger visual references or higher-impact components when it materially improves the interface.
+- Adapt third-party components to project tokens and conventions; never paste a foreign visual language unchanged.
+- Treat accessibility, focus, keyboard behavior, contrast, loading, empty, error, disabled, and responsive states as part of the UI contract.
+- Treat motion as hierarchy and feedback, not decoration.
+- Do not declare frontend work complete from code/build success alone. Render the real application, inspect representative desktop and mobile widths, fix visible defects, and verify again.
+- Reject generic AI defaults when they do not fit the product: arbitrary purple gradients, pointless glassmorphism, excessive rounded cards, weak type hierarchy, random hero blobs, and decorative motion without purpose.
+<!-- FRONTEND-QUALITY-POLICY:END -->
