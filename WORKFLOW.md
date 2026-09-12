@@ -4,447 +4,393 @@ Reusable multi-step procedures.
 
 Permanent rules belong in `AGENTS.md`.
 Project truth belongs in `SPEC.md`.
-Current execution state belongs in `TODO.md`.
-Deterministic validation belongs in `scripts/`.
+Execution state belongs in `TODO.md`.
+Verification truth belongs in `EVIDENCE.md`.
+Deterministic enforcement belongs in `scripts/` and `.framework/`.
 
-This file explains **how** recurring work is performed.
-It does not redefine rules already owned by `AGENTS.md`.
+This file defines **how** lifecycle work is performed. It does not duplicate
+permanent rules already owned by `AGENTS.md`.
+
+---
+
+## Canonical Lifecycle
+
+```text
+INTAKE
+  -> SPECIFICATION
+  -> SEMANTIC CONSISTENCY REVIEW
+  -> HUMAN APPROVAL
+  -> PHASE PLANNING
+  -> EXECUTION
+  -> VALIDATION
+  -> REVIEW
+  -> COMPLETION
+  -> COMMIT
+  -> NEXT PHASE
+  -> FINAL PROJECT CERTIFICATION
+```
+
+Do not skip directly from implementation to `Done`.
 
 ---
 
 ## Start or Resume Work
 
-At the beginning of a new session:
+At the beginning of a session:
 
 1. read `AGENTS.md`
 2. read `SPEC.md`
 3. read `TODO.md`
-4. identify the phase or task being worked
-5. inspect only the code, tests, interfaces, and configuration relevant to that work
+4. read the relevant rows in `EVIDENCE.md`
+5. identify the active phase/task
+6. inspect only relevant code, tests, interfaces, configuration, and current failure evidence
 
-Use Git history only when historical evidence is needed.
-
-Do not reconstruct current project truth from old chats when `SPEC.md` and `TODO.md`
-already define it.
+Use Git history only for historical evidence. Do not reconstruct current project
+truth from old chats when authoritative files already define it.
 
 ---
 
 ## Intake and Context Normalization
 
-Intake may begin from one or more sources:
+Intake has two explicit modes.
 
-- typed requirements
-- PDFs
-- client documents
-- email or pasted email
-- notes
-- screenshots
-- readable project documentation
-- an existing repository
+### Discovery mode
 
-Treat all supplied material as one context bundle.
+Invoked with no requirement bundle:
+
+```text
+/intake
+```
+
+State briefly that no requirements were supplied, begin discovery, and mention that
+`/intake <requirements>` can normalize an existing requirement dump.
+
+### Normalization mode
+
+Invoked with requirements/context already supplied:
+
+```text
+/intake <requirements/context>
+```
+
+Treat typed requirements, files, screenshots, existing-repository evidence, and
+other supplied material as one context bundle.
 
 ### Normalize
 
-Produce a compact working understanding:
+Produce a compact working model of:
 
-1. short project overview
-2. users and primary outcomes
-3. functional requirements
-4. measurable non-functional requirements
-5. constraints
-6. technical choices already made
-7. budget and external-service implications
-8. explicit out-of-scope items
-9. conflicts or contradictions
-10. unresolved questions that materially affect the project
+1. product problem, users, outcomes, and use cases
+2. functional and measurable non-functional requirements
+3. constraints and compatibility requirements
+4. existing confirmed technical decisions
+5. data/state and entity ownership classes
+6. external services, deterministic test-provider strategy, cost, and required final integration state
+7. authentication and network-exposure boundary
+8. runtime/toolchain requirements
+9. out-of-scope items
+10. contradictions or unresolved questions
 
-Do not repeat source documents verbatim.
+Populate `SPEC.md` as `DRAFT`. Use only `{{TBD: ...}}` for unresolved content.
+Do not create application code during intake.
 
-Spend context on ambiguity and decisions, not repetition.
+---
 
-### Intake Result
+## Specification Procedure
 
-Populate `SPEC.md` with:
+For `Entry: NEW`, define the smallest architecture that satisfies the requirements.
+For `Entry: ADOPT`, inspect the repository before changing its shape and normalize
+existing useful behavior into the SPEC.
+
+Before approval ensure:
+
+- every REQ/NFR has AC coverage
+- each AC declares its required proof class
+- data entities are classified rather than blindly treated as user-owned
+- important runtime versions are pinned when version matters
+- nondeterministic/credentialed external services have a deterministic automated-test strategy
+- each external integration declares its required final state: IMPLEMENTED, TESTED, or LIVE VERIFIED
+- unauthenticated applications explicitly define network exposure
+- Important Decisions contain concrete confirmed choices only
+- Open Questions accurately distinguishes unresolved/proposed defaults from confirmed truth
+
+---
+
+## Semantic Consistency Review
+
+Mechanical parsing cannot prove semantic agreement. Before human approval, and again
+after any MANUAL decision that changes implementation/proof strategy, reconcile:
 
 ```text
-Status: DRAFT
-Spec revision: 0 or current revision
-Entry: NEW or ADOPT
-Rigor: LEAN, STANDARD, or STRICT
+Product Outcome
+<-> Requirements / NFRs
+<-> Acceptance Criteria + proof classes
+<-> Constraints
+<-> Architecture
+<-> Data / Ownership
+<-> External Services
+<-> Security / Network Exposure
+<-> Deployment / Runtime
+<-> Important Decisions
+<-> Open Questions
 ```
 
-Then fill only applicable sections.
+Look specifically for contradictions such as:
 
-Use `{{TBD: ...}}` for unresolved content.
+- credential-free outcome vs mandatory credentialed provider
+- optional service vs mandatory AC
+- out-of-scope behavior referenced by an AC
+- confirmed decision expressed only as an example
+- a MANUAL proof decision that contradicts AC wording
+- runtime pin in SPEC but a different runtime in project tooling
 
-Do not mark the specification `APPROVED` during normalization.
-
----
-
-## New Project Procedure
-
-Use when `Entry: NEW`.
-
-1. normalize the context bundle
-2. define the product and requirements in `SPEC.md`
-3. define REQ → AC traceability
-4. define constraints
-5. choose the smallest architecture that satisfies the requirements
-6. record external services, cost, and alternatives
-7. record important decisions and rejected alternatives
-8. resolve blocking open questions
-9. plan phases in `TODO.md`
-10. run the Specification Approval Procedure
-11. start the first eligible phase using the Start Phase Procedure
-
-Do not create application code before the specification is approved.
-
----
-
-## Adopt Existing Repository Procedure
-
-Use when `Entry: ADOPT`.
-
-Before changing structure:
-
-1. inspect repository layout
-2. inspect package manifests and dependency files
-3. identify application entrypoints
-4. identify tests and current validation commands
-5. identify build and deployment paths
-6. identify data stores and external services
-7. identify existing security and environment conventions
-8. inspect representative code for established project patterns
-
-Then:
-
-1. normalize existing behavior into `SPEC.md`
-2. record the existing useful repository shape
-3. identify drift between documentation and implementation
-4. preserve working behavior unless the specification changes it
-5. add only framework files or changes that the project actually needs
-6. plan adoption work in `TODO.md`
-7. approve the specification before starting a new phase
-
-Do not force an adopted project to resemble the template.
+If a decision changes project truth or how an AC must be interpreted, reconcile the
+SPEC **before implementation continues**. Do not defer the contradiction until phase completion.
 
 ---
 
 ## Specification Approval Procedure
 
-`bash scripts/check-spec.sh` answers:
-
-> Is the current `SPEC.md` mechanically ready to be approved?
-
-While `Status: DRAFT`, a non-zero exit is readiness information, not a build failure.
-
-### Mechanical Gate
-
-Run:
+Mechanical readiness:
 
 ```bash
 bash scripts/check-spec.sh
 ```
 
-Continue only when it exits `0`.
+While DRAFT, non-zero means NOT READY FOR APPROVAL; it is not a project build failure.
 
-### Human / Engineering Gate
-
-Review the human gate defined in the `Approval` section of `SPEC.md`.
-
-If approved, run:
+Then complete the semantic/human gate. If approved, run exactly:
 
 ```bash
 bash scripts/approve-spec.sh
 ```
 
-Running this script *is* the approval. It re-checks readiness, then atomically
-increments `Spec revision` by exactly `1` and sets `Status` to `APPROVED` in one
-step. There is no separate hand edit of `Spec revision` and `Status` to get
-half-right - that two-field manual edit is exactly what this script replaces.
+Running this script is the approval action. It atomically increments the revision and
+sets `Status: APPROVED`. Do not hand-edit those fields to approve.
 
-The approval transition depends on specification integrity, not on the current code,
-test, or build state. A red implementation may be the reason the newly approved
-specification exists.
-
-Project validation remains required for implementation completion, not for approving
-project truth.
+Framework implementation self-tests separately prove that the approval transition
+works; `check-spec.sh` only validates SPEC state/readiness.
 
 ---
 
-## Planning Procedure
+## Phase Planning Procedure
 
-Planning may occur while `SPEC.md` is `DRAFT`.
+Plan phases after the SPEC is approved. If planning exposes a specification defect,
+return the SPEC to DRAFT rather than silently compensating in TODO.
 
-Use the simple phase pattern already defined in `TODO.md`:
+Choose one planning default once:
 
-```text
-Phase N
-  state block
-  Agenda
-  Acceptance Coverage
-  To-do list
-  Blocker
-```
+- `CONSERVATIVE` - mostly MANUAL
+- `HYBRID` - selected AUTO phases
+- `AUTONOMOUS` - routine implementation phases default AUTO with human gates intact
+- `CUSTOM` - explicit per-phase choices
+
+Record it in `TODO.md`. It is not an authority grant; each phase `Mode` remains authoritative.
 
 For each phase:
 
-1. give it one coherent objective
-2. reference the `AC-*` IDs it owns
-3. break the objective into concrete tasks
-4. choose `MANUAL` or `AUTO`
-5. define dependencies
-6. set the AUTO iteration budget
-7. leave both revision fields as `—`
+1. define one coherent objective
+2. own specific `AC-*` IDs
+3. define concrete tasks
+4. define real dependencies
+5. choose `MANUAL` or `AUTO`
+6. if AUTO, choose `AUTO executor: NONE` for policy-only AUTO or an adapter-defined executor
+7. require a positive iteration budget only for executor-backed AUTO
+8. leave `Defined against` and `Completed against` as `—`
+9. ensure required evidence rows exist in `EVIDENCE.md`
 
-### Phase Design
+Run:
 
-Prefer phases that can be verified independently.
-
-Independent phases may run in parallel.
-
-Use `Depends on` only when a real ordering dependency exists.
-
-Every `AC-*` in an approved `SPEC.md` must be owned by at least one phase before
-implementation begins.
+```bash
+bash scripts/check-todo.sh
+bash scripts/check-evidence.sh
+```
 
 ---
 
 ## Start Phase Procedure
 
-A phase may start only when the start rules in `AGENTS.md` are satisfied.
+Before first start:
 
-Before starting:
+1. SPEC is APPROVED
+2. `check-todo.sh` passes
+3. all dependencies are Done
+4. referenced AC IDs exist
+5. MANUAL/AUTO/executor fields are valid
+6. `Defined against: —`
+7. `Completed against: —`
 
-1. confirm `SPEC.md` is `APPROVED`
-2. run:
-
-```bash
-bash scripts/check-todo.sh
-```
-
-3. read the current `Spec revision`
-4. confirm all dependencies are `Done`
-5. confirm every referenced `AC-*` exists
-6. confirm phase mode and iteration-budget fields are valid
-7. confirm:
-
-```text
-Defined against: —
-Completed against: —
-```
-
-Then update the phase in one edit:
+Then atomically conceptually transition the phase to:
 
 ```text
 Status: In Progress
 Defined against: Spec revision N
 ```
 
-where `N` is the current approved revision.
+`Defined against` is frozen after first start.
 
-After first start, `Defined against` is frozen.
+If executor-backed AUTO is selected, initialize durable state once:
 
-Do not change `Completed against`.
-
----
-
-## Manual Phase Execution Procedure
-
-For a MANUAL phase:
-
-1. read the phase Agenda and Acceptance Coverage
-2. work through the To-do list
-3. update task checkboxes as work becomes true
-4. run focused checks during implementation as needed
-5. use `Blocker` when progress cannot continue
-6. stop at human gates defined by `AGENTS.md`
-7. perform required review
-8. run the Complete Phase Procedure
-
-MANUAL means supervised decision boundaries, not step-by-step permission for every
-safe edit.
-
----
-
-## Auto Phase Execution Procedure
-
-AUTO executes safe, in-scope work without intermediate approval.
-
-### Autonomous Run
-
-At the start of a human-authorized autonomous run:
-
-1. read the phase Agenda, Acceptance Coverage, and To-do list
-2. read the phase AUTO iteration budget
-3. set the run-local iteration counter to `0`
-4. continue through safe tasks while remaining inside the approved phase boundaries
-
-The iteration budget limits one uninterrupted autonomous run.
-
-The run-local counter is not durable project state - it lives only in the current
-agent session, and `TODO.md` records only the budget, not how many iterations have
-been used. This is deliberate rather than an oversight: if the session ends or
-context resets mid-run, the autonomous run is over. A context reset during AUTO
-always terminates that run; resuming afterward requires the human-authorized
-resume below, which starts a fresh run at iteration `0`. Do not add an
-"iterations used" field to `TODO.md` to work around this - a persisted counter
-would let a restarted session claim it remembers a partial run it cannot actually
-verify.
-
-A human-authorized resume begins a new autonomous run and resets the run-local
-counter. An AUTO agent may not authorize or perform its own resume after a stop
-condition.
-
-### Iteration
-
-One iteration is the cycle defined in `AGENTS.md`:
-
-```text
-attempt → validate or verify relevant work → inspect the result → decide the next action
+```bash
+bash scripts/auto-state.sh init <phase> <executor> <budget>
 ```
 
-Increment the run-local counter once after every completed cycle, whether the result
-succeeds or fails.
-
-When the counter reaches the phase budget, stop before beginning another cycle.
-
-Stop immediately when any other AUTO stop condition in `AGENTS.md` fires.
-
-### Allowed TODO Updates During AUTO
-
-AUTO may:
-
-- check completed tasks
-- write `Blocker`
-- move `In Progress` → `Blocked`
-
-Clearing `Blocker` and moving `Blocked` → `In Progress` occur only as part of a
-human-authorized resume through the Resume Phase Procedure.
-
-AUTO may not perform the `Done` transition.
+Never reinitialize an existing phase ledger to reset consumed iterations.
 
 ---
 
-## Block Phase Procedure
+## MANUAL Phase Execution
 
-When progress cannot continue:
+1. read Agenda, AC ownership, and required evidence classes
+2. resolve architecture/proof decisions before implementing them
+3. when a decision changes SPEC truth, stop and use the specification-change procedure
+4. implement incrementally
+5. update task checkboxes only when true
+6. update `EVIDENCE.md` as proof is actually obtained
+7. use Blocker when progress cannot continue
+8. run normal validation and any applicable focused checks
+9. complete review
+10. use the Complete Phase Procedure
 
-1. set:
+MANUAL means supervised decision boundaries, not permission prompts for every safe edit.
+
+---
+
+## AUTO Policy Execution
+
+For `Mode: AUTO`, work may continue without intermediate approval only inside the
+approved phase boundary.
+
+### Policy-only AUTO
+
+```text
+AUTO executor: NONE
+AUTO iteration budget: —
+```
+
+There is no durable iteration count. Do not invent one in conversation or TODO.
+The current session may continue until an AUTO stop condition fires.
+
+### Executor-backed AUTO
+
+A real executor performs cycles:
+
+```text
+attempt -> relevant validation/verification -> inspect -> decide
+```
+
+After each genuine cycle record it mechanically:
+
+```bash
+bash scripts/auto-state.sh consume <phase> <PASS|FAIL> <fingerprint> <reason>
+```
+
+The ledger is durable and cumulative across session/process restarts. Human resume
+does not reset it. Reads, reporting, planning, and housekeeping do not consume an iteration.
+
+The executor stops on:
+
+- budget exhaustion
+- three identical failed attempts
+- protected-boundary change
+- hard human gate
+- phase-scope exit
+- unresolved drift/blocker
+
+The executor cannot authorize its own resume or increase its budget.
+
+---
+
+## Block / Resume / Replan
+
+When execution cannot continue:
 
 ```text
 Status: Blocked
+Blocker: <specific condition + what is required>
 ```
 
-2. replace `Blocker: None` with a concise description of:
- - what prevents progress
- - what decision, credential, dependency, condition, or external event is required
-3. report the stop condition
+Do not alter protected phase fields merely to escape a blocker.
 
-If the blocker is AUTO iteration-budget exhaustion or another AUTO stop condition,
-state that human authorization is required before resume. Do not self-resume.
+Resume requires human authorization. Clear the blocker and restore `In Progress`.
+For executor-backed AUTO, continue using the existing durable ledger; do not reset it.
+Reactivate a stopped ledger only as part of that human-authorized resume:
 
-Do not change:
+```bash
+bash scripts/auto-state.sh resume <phase> <reason>
+```
 
-- `Mode`
-- `Depends on`
-- `Defined against`
-- `Completed against`
-- Acceptance Coverage
-- phase deliverables
-- AUTO iteration budget
+If the executor budget must increase, keep the phase Blocked, perform the human
+replanning, update the TODO budget, then update the durable ledger without erasing
+consumed iterations:
+
+```bash
+bash scripts/auto-state.sh rebudget <phase> <new-budget> <reason>
+```
+
+The executor remains stopped after rebudgeting until the human-authorized `resume`
+operation runs. If scope, AC ownership, mode, dependencies, executor, or deliverables
+must change, keep the phase Blocked while replanning. If project truth changes, return
+SPEC to DRAFT and reapprove it first.
 
 ---
 
-## Resume Phase Procedure
+## Validation Procedure
 
-A blocked phase resumes only after human authorization.
+### Normal fast validation
 
-For AUTO, the agent may not authorize or perform its own resume, including after
-iteration-budget exhaustion.
-
-When the blocker is resolved and resume is authorized:
-
-1. confirm no immutable phase field needs to change
-2. clear the Blocker back to:
-
-```text
-None
+```bash
+bash scripts/validate.sh
 ```
 
-3. change:
+Meaning:
 
-```text
-Status: Blocked
+- `0` = configured validation PASS
+- `1` = FAIL
+- `2` = PRE-SCAFFOLD / NOT CONFIGURED because no executable surface exists yet
+
+Exit 2 never counts as a passing build and never completes a phase.
+
+`.framework/validation.conf` registers every executable/testable surface. Each record
+includes a runtime preflight plus at least one real project check from
+lint/typecheck/test/build. `scripts/check-validation-surfaces.sh` discovers common
+executable surfaces and fails when a new one is neither registered nor explicitly
+ignored, or when a registered surface has only a runtime preflight and no project
+behavior check.
+
+### Packaging / deployment smoke
+
+```bash
+bash scripts/smoke.sh
 ```
 
-to:
+Use this for expensive shipping-artifact proof such as Docker build/start, restart
+persistence, packaged execution, or deployment smoke. Keep it separate from normal
+validation unless the project deliberately chooses otherwise.
 
-```text
-Status: In Progress
-```
+### Live external-provider verification
 
-This is a resume, not a new phase start.
+Run only when SPEC requires LIVE VERIFIED and credentials/network/cost are authorized.
+Mocks and deterministic stubs may prove TESTED, never LIVE VERIFIED.
 
-Do not rewrite `Defined against`.
-
-For AUTO, the human-authorized resume begins a new autonomous run and resets the
-run-local iteration counter to `0`.
+Record achieved proof in `EVIDENCE.md`.
 
 ---
 
-## Replan or Remove Phase Procedure
+## Review and Verification Procedure
 
-Any active phase being replanned must remain `Status: Blocked` while replanning is
-in progress. The schema has no separate stopped or replanning status.
+For MEDIUM/LARGE behavioral work:
 
-### AUTO
+1. finish the smallest coherent implementation
+2. run the mapped review capability
+3. resolve correctness/security/maintainability findings
+4. simplify unnecessary complexity without changing behavior
+5. run `scripts/validate.sh`
+6. run required SMOKE/LIVE/MANUAL proof separately
+7. update `EVIDENCE.md`
+8. re-run semantic reconciliation when MANUAL decisions changed how an AC is proven
 
-An AUTO phase is never replanned in place.
-
-If scope, mode, dependencies, acceptance coverage, deliverables, or iteration budget
-must change:
-
-1. move the phase to `Blocked`
-2. stop AUTO execution
-3. report why the phase cannot continue as defined
-4. human reviews the required change
-5. if project truth must change, follow the Change Approved Specification Procedure
-6. edit the phase only outside AUTO execution while it remains `Blocked`
-7. resume only through the Resume Phase Procedure
-
-### MANUAL
-
-A MANUAL phase that requires replanning also moves to `Blocked` first.
-
-After human authorization, edit it while blocked and resume through the Resume Phase Procedure.
-
-`Defined against` remains frozen even when the phase is replanned.
-
-`Completed against` remains untouched until completion.
-
-### Remove an Unneeded Phase
-
-The framework does not add an `Abandoned` status.
-
-Abandonment means replanning the phase out of the current execution plan.
-
-A phase may be removed only with human authorization and only when it is not `Done`.
-
-Before removal:
-
-1. if it is `In Progress`, move it to `Blocked`
-2. reassign every owned `AC-*` to another phase, or remove that AC through the
- approved specification-change procedure when the requirement itself no longer
- exists
-3. update every phase that depends on the removed phase
-4. confirm `check-todo.sh` passes after the edit
-5. remove the phase from `TODO.md`
-
-Do not renumber remaining phases merely to close a numbering gap.
-
-Git preserves the historical existence of the removed phase.
+Review, validation, and acceptance evidence are different gates.
 
 ---
 
@@ -452,197 +398,159 @@ Git preserves the historical existence of the removed phase.
 
 A phase becomes `Done` only through this procedure.
 
-### A. Human / Engineering Completion Gate
+### Human / engineering gate
 
-Before invoking the script, confirm:
+Confirm:
 
-1. every `AC-*` owned by the phase passes against the current implementation
-2. required review under `AGENTS.md` is complete
-3. unresolved review findings do not invalidate the phase outcome
+- every owned AC is actually satisfied against current wording
+- review is complete
+- required NORMAL/SMOKE/LIVE/MANUAL evidence has been obtained
+- `EVIDENCE.md` reports owned ACs as `PASS`
+- revision drift, if any, was explicitly re-verified
 
-If:
-
-```text
-Defined against != current Spec revision
-```
-
-re-verify every AC in the phase against its **current wording**.
-
-Confirming that the AC ID still exists is not sufficient.
-
-### B. Mechanical Completion Gate
-
-Run:
+### Mechanical gate and transition
 
 ```bash
 bash scripts/complete-phase.sh <phase-number>
 ```
 
-The script must verify deterministic completion preconditions, including:
+The script verifies:
 
-- SPEC is `APPROVED`
-- phase is `In Progress`
-- all tasks are checked
-- referenced AC IDs exist
-- no dependency currently has `Status: Not Started`
-- `Defined against` is populated
-- `Completed against` is `—`
-- `bash scripts/validate.sh` exits `0`
-- TODO structural integrity passes
+- SPEC APPROVED
+- phase In Progress
+- all tasks checked
+- TODO/framework integrity
+- owned AC evidence is PASS
+- executor ledger matches TODO when executor-backed AUTO is used
+- normal validation exits 0
+- SPEC status/revision did not change during validation
 
-### C. State Transition
-
-On success, `complete-phase.sh` performs one atomic update:
+On success it atomically writes:
 
 ```text
 Status: Done
 Completed against: Spec revision N
 ```
 
-where `N` is read from the current approved `SPEC.md`.
-
-The script writes both fields or neither.
-
-Re-running it on an already-valid `Done` phase is a successful no-op.
-
-If an already-Done phase is malformed, the script fails rather than silently
-repairing state.
-
-`complete-phase.sh` is a state-transition helper.
-
-It must never be called by `scripts/validate.sh`.
+It reports durable AUTO iterations consumed when applicable. It never commits Git.
 
 ---
 
-## Review and Verification Procedure
+## Commit Procedure
 
-For work requiring review under `AGENTS.md`:
+After phase completion:
 
-1. finish implementation
-2. run the mapped review capability
-3. resolve findings that affect correctness, security, maintainability, or scope
-4. simplify unnecessary complexity when behavior remains unchanged
-5. run:
+1. inspect `git status` and the complete diff
+2. confirm only intended changes are present
+3. create a phase checkpoint commit when the repository uses Git
+4. do not combine unrelated work merely to force one commit
+
+Completion and commit are separate concerns. `complete-phase.sh` never runs `git commit`.
+
+---
+
+## Next Phase Procedure
+
+After a completed phase and appropriate checkpoint:
+
+1. identify all `Not Started` phases whose dependencies are Done
+2. choose the next phase based on approved plan and current priorities
+3. do not renumber phases to close gaps
+4. start it through the Start Phase Procedure
+
+Independent phases may run in parallel only when their state transitions cannot overwrite each other.
+
+---
+
+## Final Project Certification
+
+When all planned phases are Done:
+
+1. ensure every AC row in `EVIDENCE.md` is PASS
+2. ensure each external integration meets or exceeds its SPEC-required final state
+3. run normal validation
+4. run required smoke gates
+5. set Final Certification Notes to exactly `None` only when no evidence gap remains
+6. run:
 
 ```bash
-bash scripts/validate.sh
+bash scripts/certify-project.sh
 ```
 
-6. verify required browser/E2E behavior when acceptance criteria require runtime
- evidence
-7. retain concise completion evidence
-
-Do not substitute review for validation or validation for acceptance verification.
+Certification is read-only. It must not repair state or manufacture evidence.
 
 ---
 
 ## Change Approved Specification Procedure
 
-When an approved specification requires a material change:
+For a material change:
 
-1. change `Status` from `APPROVED` to `DRAFT` before editing the material section
-2. stop in-progress AUTO phases according to `AGENTS.md`
-3. do not start new phases
-4. edit the specification
-5. update planned phases when needed
-6. run:
+1. set Status to DRAFT before editing material truth
+2. stop affected AUTO work
+3. block/reconcile MANUAL work if the pending change affects it
+4. edit SPEC
+5. update planned TODO/evidence obligations as needed
+6. run `check-spec.sh`
+7. run semantic consistency review
+8. human approves with `approve-spec.sh`
+9. re-run TODO/evidence integrity
 
-```bash
-bash scripts/check-spec.sh
-```
-
-7. complete the human approval gate
-8. increment `Spec revision`
-9. restore:
-
-```text
-Status: APPROVED
-```
-
-10. run:
-
-```bash
-bash scripts/check-spec.sh
-```
-
-Specification re-approval is not gated on the current code, test, or build state.
-
-Already-running MANUAL work follows the DRAFT rules in `SPEC.md`.
-
-Completed phases are not automatically invalidated by a new revision.
-
-Revision mismatch is a re-verification trigger at completion.
+Completed phases are not automatically invalidated. Revision mismatch is a trigger for re-verification.
 
 ---
 
-## Validation Procedures
+## Adopt Existing Repository Procedure
 
-### Normal Validation
+For `Entry: ADOPT`, inspect before restructuring:
 
-Use:
+- repository layout and manifests
+- application entrypoints
+- tests and current validation commands
+- runtime/toolchain pins
+- build/deployment paths
+- data stores and external services
+- security/environment conventions
+- representative project patterns
 
-```bash
-bash scripts/validate.sh
-```
+Preserve useful working behavior and structure. Register existing executable surfaces
+in `.framework/validation.conf`; do not force the repository to resemble the template.
 
-This is the only validation entrypoint for humans, agents, and CI.
+---
 
-It may delegate to deterministic helpers such as:
+## Framework Self-Test Procedure
 
-```text
-scripts/check-spec.sh
-scripts/check-todo.sh
-```
-
-It must never invoke state-transition helpers.
-
-### Spec Readiness
-
-Use directly while drafting:
+The framework must test its own lifecycle machinery separately from project validation:
 
 ```bash
-bash scripts/check-spec.sh
+bash tests/framework/run.sh
 ```
 
-A non-zero result while DRAFT means:
+Self-tests use disposable fixtures and must cover at least:
 
-```text
-NOT READY FOR APPROVAL
-```
+- canonical and malformed phase parsing
+- zero-phase false-positive prevention
+- DRAFT -> APPROVED transition and atomic failure behavior
+- phase completion transition and malformed Done rejection
+- PRE-SCAFFOLD vs detected-unregistered validation surfaces
+- runtime mismatch failure
+- AUTO durable iteration accounting across process invocations
+- deterministic TESTED vs LIVE VERIFIED state separation
+- acceptance-evidence proof-class drift rejection
+- final-certification success and failure paths
+- human AUTO resume/rebudget without iteration reset
+- smoke/normal validation separation and empty smoke-command rejection
 
-not:
-
-```text
-PROJECT BUILD FAILED
-```
-
-### TODO Integrity
-
-Use:
-
-```bash
-bash scripts/check-todo.sh
-```
-
-to inspect TODO structure and cross-file state invariants.
+Run this suite on macOS and Linux in template CI. Avoid GNU-only shell-tool assumptions.
 
 ---
 
 ## Context Reset Procedure
 
-When a session becomes large, stale, or unfocused:
+When context becomes stale or large, preserve only current task, blockers, requirements,
+constraints, current failure evidence, and executor state. Restart from authoritative
+files and relevant code. Durable AUTO executor state comes from `.framework/auto/`,
+not conversational memory.
 
-1. preserve the current task and unresolved blocker
-2. preserve active requirements and constraints
-3. preserve the current error or validation evidence
-4. discard failed exploratory paths once their conclusion is known
-5. restart from:
- - `AGENTS.md`
- - `SPEC.md`
- - `TODO.md`
- - relevant code only
-
-Do not carry entire prior conversations forward as project state.
 
 <!-- FRONTEND-WORKFLOW:BEGIN -->
 ## Frontend design loop

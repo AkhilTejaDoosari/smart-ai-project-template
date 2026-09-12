@@ -238,6 +238,7 @@ acceptance criterion may cover multiple requirements.
 ### AC-001 - {{TBD: criterion name}}
 
 **Satisfies:** `REQ-001`
+**Required proof:** {{TBD: NORMAL, SMOKE, LIVE, MANUAL, or comma-separated combination}}
 
 Given:
 - {{TBD: starting condition}}
@@ -251,6 +252,7 @@ Then:
 ### AC-002 - {{TBD: criterion name}}
 
 **Satisfies:** `REQ-002`, `NFR-001`
+**Required proof:** {{TBD: NORMAL, SMOKE, LIVE, MANUAL, or comma-separated combination}}
 
 Given:
 - {{TBD: starting condition}}
@@ -261,8 +263,16 @@ When:
 Then:
 - {{TBD: observable result or threshold}}
 
-Every acceptance criterion must produce a clear pass or fail. AUTO eligibility is
-defined in `AGENTS.md`.
+Every acceptance criterion must produce a clear pass or fail. `Required proof`
+defines the class of evidence needed to prove it:
+
+- `NORMAL` - routine deterministic project validation
+- `SMOKE` - packaging/deployment/runtime smoke verification
+- `LIVE` - real external-provider verification
+- `MANUAL` - human-observed evidence that cannot reasonably be automated
+
+Use comma-separated combinations when more than one class is genuinely required.
+AUTO eligibility is defined in `AGENTS.md`.
 
 ---
 
@@ -387,13 +397,22 @@ repository to match the template. Do not list every file.
 
 ### Entities
 
-| Entity | Purpose |
-|---|---|
-| {{TBD: entity}} | {{TBD: purpose}} |
+Classify every important entity before assigning ownership fields.
 
-### Ownership
+| Entity | Class | Purpose | Owner / Authority |
+|---|---|---|---|
+| {{TBD: entity}} | {{TBD: USER_OWNED, GLOBAL_REFERENCE, DERIVED_RUNTIME, or EXTERNAL}} | {{TBD: purpose}} | {{TBD: user, project, runtime, or external authority}} |
 
-{{TBD: who owns or may access each important class of data}}
+Entity classes mean:
+
+- `USER_OWNED` - belongs to a specific project user; user ownership identifiers may be required.
+- `GLOBAL_REFERENCE` - shared reference/catalog data; do not add user ownership merely by convention.
+- `DERIVED_RUNTIME` - computed, cached, transient, or runtime-generated state.
+- `EXTERNAL` - authoritative state lives outside this project.
+
+### Ownership and Access
+
+{{TBD: who may create, read, modify, or delete each important class of data}}
 
 ### Persistence
 
@@ -406,32 +425,41 @@ repository to match the template. Do not list every file.
 Do not turn this section into a complete database schema unless the schema itself is
 an architectural constraint.
 
----
-
 ## 10. External Services and Dependencies
 
 **Applicability:** {{TBD: YES or N/A}}
 
 `N/A` asserts that the project relies on no externally managed service, hosted API,
-SaaS dependency, or externally operated data store. If any such dependency appears in
-§7 Architecture, this section must be `YES`.
+SaaS dependency, or externally operated data store. If any such dependency appears
+in §7 Architecture, this section must be `YES`.
 
-| Service | Need | Free Tier / Limit | Estimated Monthly Cost USD | Variable-Cost Risk | Pricing Notes | Alternative |
-|---|---|---|---:|---|---|---|
-| {{TBD: service}} | {{TBD: need}} | {{TBD: limit}} | 0.00 | LOW | {{TBD: pricing notes}} | {{TBD: alternative}} |
+| Service | Need | Production Provider | Automated Test Provider | Required Final State | Free Tier / Limit | Estimated Monthly Cost USD | Variable-Cost Risk | Pricing Notes | Alternative |
+|---|---|---|---|---|---|---:|---|---|---|
+| {{TBD: service}} | {{TBD: need}} | {{TBD: real configured provider/path}} | {{TBD: deterministic fake/stub/sandbox, or N/A}} | {{TBD: IMPLEMENTED, TESTED, or LIVE VERIFIED}} | {{TBD: limit}} | 0.00 | LOW | {{TBD: pricing notes}} | {{TBD: alternative}} |
 
-Every service present in an `APPROVED` specification is approved for use.
+For nondeterministic or credentialed AI/external services, automated project tests
+must not depend on network availability, real credentials, token spend, or unstable
+responses. Define a deterministic test provider unless the integration genuinely
+cannot be tested that way; document the exception explicitly.
 
-Before adding a service, establish:
+Integration states are cumulative:
 
-1. why it is required
-2. free or included limits
-3. expected monthly cost
-4. variable-cost exposure
-5. a cheaper or free alternative
-6. total expected monthly project cost
+```text
+IMPLEMENTED -> TESTED -> LIVE VERIFIED
+```
 
-Adding, replacing, or removing a service is a material change under §1.
+- `IMPLEMENTED` means the real adapter/configuration path exists.
+- `TESTED` means deterministic automated evidence exercises the integration contract.
+- `LIVE VERIFIED` means the actual target provider was contacted through its real
+  credential/configuration path and expected behavior was observed.
+
+Mocks, deterministic stubs, fallback behavior, or adapter existence never count as
+`LIVE VERIFIED`. Achieved states and evidence live in `EVIDENCE.md`.
+
+Every service present in an `APPROVED` specification is approved for use. Before
+adding a service, establish why it is required, expected cost, variable-cost risk,
+and a cheaper/free alternative. Adding, replacing, or removing a service is a
+material change under §1.
 
 ### Cost Fields
 
@@ -446,21 +474,13 @@ Invalid: `0`, `12.5`, `$5.00`, `~12.00`, `free`, `$0.002/request`
 For `MEDIUM` or `HIGH`, `Pricing Notes` must be non-empty and describe the exposure,
 including the unit price, threshold, or condition that can increase cost.
 
-**A numeric estimate of `0.00` does not imply zero financial risk.** A service inside
-a free tier today with metered pricing beyond it is `MEDIUM` or `HIGH` at `0.00`.
+A numeric estimate of `0.00` does not imply zero financial risk.
 
 ### Budget
 
-The authoritative budget is `Monthly budget USD` in §1. Do not restate its value
-here.
-
-The summed `Estimated Monthly Cost USD` of all services in this section must not
-exceed that value.
-
-Existing personal subscriptions count as dependencies when the project relies on
-them.
-
----
+The authoritative budget is `Monthly budget USD` in §1. The summed
+`Estimated Monthly Cost USD` of all services in this section must not exceed it.
+Existing personal subscriptions count as dependencies when the project relies on them.
 
 ## 11. UX / Design
 
@@ -509,6 +529,16 @@ security rules in `AGENTS.md` still apply.
 
 {{TBD: method or none}}
 
+If authentication is `None`, explicitly define the network-exposure boundary below.
+Unauthenticated local applications default to localhost-only exposure unless broader
+access is an approved requirement.
+
+### Network Exposure
+
+- Intended exposure: {{TBD: LOCALHOST_ONLY, LAN, or PUBLIC}}
+- Bind interface: {{TBD: e.g. 127.0.0.1, 0.0.0.0, or platform equivalent}}
+- Container port publication: {{TBD: localhost-only, LAN/public, or N/A}}
+
 ### Authorization
 
 {{TBD: who may do what}}
@@ -549,7 +579,12 @@ Remove environments that do not exist.
 
 ### Runtime Requirements
 
-{{TBD: runtime requirements}}
+Pin important runtimes when implementation or support depends on a specific version.
+Validation must verify the actual runtime before project checks run.
+
+| Runtime | Required Version | Project Pin / Source |
+|---|---|---|
+| {{TBD: runtime}} | {{TBD: exact or explicitly allowed version range}} | {{TBD: pyproject, .python-version, package.json engines, toolchain file, etc.}} |
 
 ### Observability
 
@@ -571,6 +606,11 @@ Store decisions that still explain or constrain the current project.
 |---|---|---|---|
 | {{TBD: decision}} | {{TBD: choice}} | {{TBD: rejected alternatives}} | {{TBD: reason}} |
 
+`Current Choice` must be a concrete confirmed decision, not an example or a proposed
+default. Phrases such as `e.g.`, `such as`, `something like`, or `a framework like`
+do not belong in `Current Choice`. If confirmation is still required, keep the item
+in §15 instead.
+
 Keep rejected alternatives concise but sufficient to prevent needless relitigation.
 
 When a decision changes:
@@ -587,22 +627,24 @@ Git preserves chronology.
 
 ## 15. Open Questions
 
-Only unresolved questions that block or affect the specification belong here.
+**State:** {{TBD: OPEN or CLEAR}}
 
-- [ ] {{TBD: unresolved question}}
+Only unresolved questions or proposed defaults awaiting confirmation belong here.
 
-Before approval, all blocking questions must be resolved.
+When `State: OPEN`, list each unresolved item:
+
+- [ ] {{TBD: unresolved question or proposed default awaiting confirmation}}
+
+Before approval, `State` must be `CLEAR` and no unchecked question may remain.
+Do not write narrative such as "no unresolved questions remain" while keeping items
+that still require confirmation.
 
 When a question is resolved:
 
 1. move the resulting project truth into its authoritative section
-2. when meaningful alternatives were considered, add the decision and rejected
- alternatives to §14
+2. when meaningful alternatives were considered, record the confirmed decision in §14
 3. remove the resolved question from this section
-
-Resolved questions do not remain here.
-
----
+4. set `State: CLEAR` only when nothing remains unresolved
 
 ## Approval
 
@@ -647,7 +689,12 @@ The check must fail when:
 
 ### Human / Engineering Gate
 
-After `bash scripts/check-spec.sh` exits `0`, confirm:
+After `bash scripts/check-spec.sh` exits `0`, perform a semantic consistency review
+across Product, Requirements, Acceptance Criteria, Constraints, Architecture, Data,
+External Services, Security, Deployment, Important Decisions, and Open Questions.
+Mechanical parsing cannot prove that those sections agree semantically.
+
+Then confirm:
 
 - requirements represent the intended product
 - architecture can satisfy those requirements
@@ -657,11 +704,15 @@ After `bash scripts/check-spec.sh` exits `0`, confirm:
 - service alternatives and rejected options are understood
 - important unresolved decisions are closed
 
-Then:
+Then run:
 
-1. increment `Spec revision` by exactly `1`
-2. set `Status: APPROVED`
+```bash
+bash scripts/approve-spec.sh
+```
+
+Running that script is the only documented DRAFT -> APPROVED transition. It
+re-checks mechanical readiness and atomically increments `Spec revision` by exactly
+`1` while setting `Status: APPROVED`. Do not hand-edit those two fields to approve.
 
 `APPROVED` means implementation may rely on that revision as current project truth.
-
 Execution consequences of specification changes are governed by `AGENTS.md`.

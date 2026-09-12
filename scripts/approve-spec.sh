@@ -1,95 +1,38 @@
 #!/usr/bin/env bash
-#
-# Authorized SPEC.md state transition: DRAFT -> APPROVED.
-#
-# This is the human's approval action. Running this script IS the approval --
-# there is no separate manual edit to forget. It reads the current Spec revision
-# and atomically writes current+1 alongside Status: APPROVED, so the revision
-# increment can never be skipped the way a two-field hand edit could be.
-#
-# Usage:
-#   bash scripts/approve-spec.sh
-#
-# This script does NOT perform the human/engineering judgment gate (do the
-# requirements represent the intended product, is the architecture sufficient,
-# etc.) -- that judgment happens before you run this. This script only performs
-# the mechanical half: verify readiness, then atomically transition.
+# Authorized atomic SPEC transition: DRAFT rev N -> APPROVED rev N+1.
+# The human/engineering semantic gate must be completed before invoking this script.
 
 set -euo pipefail
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-SPEC_FILE="$ROOT_DIR/SPEC.md"
-CHECK_SPEC_SCRIPT="$SCRIPT_DIR/check-spec.sh"
-TMP_FILE=""
-
-fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
-pass() { printf 'PASS: %s\n' "$*"; }
-info() { printf 'INFO: %s\n' "$*"; }
-
-cleanup() {
-  [[ -z "${TMP_FILE:-}" || ! -f "$TMP_FILE" ]] || rm -f "$TMP_FILE"
-}
+SPEC="$ROOT_DIR/SPEC.md"
+CHECK="$SCRIPT_DIR/check-spec.sh"
+TMP=""
+cleanup(){ [[ -z "${TMP:-}" || ! -f "$TMP" ]] || rm -f "$TMP"; }
 trap cleanup EXIT HUP INT TERM
+fail(){ printf 'FAIL: %s\n' "$*" >&2; exit 1; }
 
-[[ -f "$SPEC_FILE" ]] || fail "missing SPEC.md"
-[[ -f "$CHECK_SPEC_SCRIPT" ]] || fail "missing scripts/check-spec.sh"
+[[ -f "$SPEC" ]] || fail "missing SPEC.md"
+[[ -f "$CHECK" ]] || fail "missing scripts/check-spec.sh"
+STATUS="$(awk '/^\*\*Status:\*\* (DRAFT|APPROVED)$/{c++;v=$0;sub(/^\*\*Status:\*\* /,"",v)}END{if(c==1)print v}' "$SPEC")"
+[[ "$STATUS" == "DRAFT" ]] || fail "SPEC.md must contain exactly one Status: DRAFT to approve"
+REV="$(awk '/^\*\*Spec revision:\*\* [0-9]+$/{c++;v=$0;sub(/^\*\*Spec revision:\*\* /,"",v)}END{if(c==1)print v}' "$SPEC")"
+[[ "$REV" =~ ^[0-9]+$ ]] || fail "SPEC.md must contain exactly one non-negative Spec revision"
+NEW=$((REV+1))
 
-STATUS_COUNT="$(grep -Ec '^\*\*Status:\*\* (DRAFT|APPROVED)$' "$SPEC_FILE" || true)"
-[[ "$STATUS_COUNT" -eq 1 ]] || fail "SPEC.md must contain exactly one valid Status field"
-STATUS="$(sed -n 's/^\*\*Status:\*\* \(DRAFT\|APPROVED\)$/\1/p' "$SPEC_FILE")"
-[[ "$STATUS" == "DRAFT" ]] || fail "SPEC.md Status must be DRAFT to approve; current status is '$STATUS'"
+echo "INFO: checking mechanical readiness..."
+bash "$CHECK" || fail "SPEC.md is not mechanically ready for approval"
+echo "INFO: invocation attests that the semantic/human approval gate is complete."
 
-REV_COUNT="$(grep -Ec '^\*\*Spec revision:\*\* [0-9]+$' "$SPEC_FILE" || true)"
-[[ "$REV_COUNT" -eq 1 ]] || fail "SPEC.md must contain exactly one non-negative integer Spec revision"
-CURRENT_REV="$(sed -n 's/^\*\*Spec revision:\*\* \([0-9][0-9]*\)$/\1/p' "$SPEC_FILE")"
-NEW_REV=$((CURRENT_REV + 1))
+TMP="$(mktemp "${SPEC}.tmp.XXXXXX")"
+cp -p "$SPEC" "$TMP"
+awk -v new="$NEW" '
+$0=="**Status:** DRAFT"{if(s++)exit 41;print "**Status:** APPROVED";next}
+/^\*\*Spec revision:\*\* [0-9]+$/{if(r++)exit 42;print "**Spec revision:** " new;next}
+{print}
+END{if(s!=1||r!=1)exit 43}
+' "$SPEC" > "$TMP" || fail "could not construct atomic SPEC update"
+mv -f "$TMP" "$SPEC"; TMP=""
 
-info "Checking mechanical readiness..."
-if ! bash "$CHECK_SPEC_SCRIPT"; then
-  fail "SPEC.md is not mechanically ready for approval; see the output above."
-fi
-pass "Mechanical readiness confirmed."
-
-info "This invocation attests that the human/engineering judgment gate (does the"
-info "architecture satisfy the requirements, is the cost acceptable, etc.) has"
-info "been completed. This script does not and cannot verify that judgment."
-
-TMP_FILE="$(mktemp "${SPEC_FILE}.tmp.XXXXXX")"
-cp -p "$SPEC_FILE" "$TMP_FILE"
-
-if ! awk -v new_rev="$NEW_REV" '
-  $0 == "**Status:** DRAFT" {
-    if (status_changed) exit 41
-    print "**Status:** APPROVED"
-    status_changed = 1
-    next
-  }
-  /^\*\*Spec revision:\*\* [0-9]+$/ {
-    if (revision_changed) exit 42
-    print "**Spec revision:** " new_rev
-    revision_changed = 1
-    next
-  }
-  { print }
-  END {
-    if (status_changed != 1 || revision_changed != 1) exit 43
-  }
-' "$SPEC_FILE" > "$TMP_FILE"; then
-  fail "could not construct the atomic SPEC.md update; original file is unchanged"
-fi
-
-NEW_STATUS="$(sed -n 's/^\*\*Status:\*\* \(DRAFT\|APPROVED\)$/\1/p' "$TMP_FILE")"
-NEW_REV_CHECK="$(sed -n 's/^\*\*Spec revision:\*\* \([0-9][0-9]*\)$/\1/p' "$TMP_FILE")"
-[[ "$NEW_STATUS" == "APPROVED" ]] || fail "replacement verification failed: Status is not APPROVED"
-[[ "$NEW_REV_CHECK" == "$NEW_REV" ]] || fail "replacement verification failed: revision is not $NEW_REV"
-
-mv -f "$TMP_FILE" "$SPEC_FILE"
-TMP_FILE=""
-
-info "Re-verifying integrity of the now-APPROVED spec..."
-if ! bash "$CHECK_SPEC_SCRIPT"; then
-  fail "SPEC.md failed integrity check immediately after approval; this should not happen. Investigate before proceeding."
-fi
-
-pass "SPEC.md approved: Spec revision $CURRENT_REV -> $NEW_REV, Status: APPROVED."
+bash "$CHECK" || fail "approved SPEC failed immediate integrity re-check"
+echo "PASS: SPEC.md approved: Spec revision $REV -> $NEW."

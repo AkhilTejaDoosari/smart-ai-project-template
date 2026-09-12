@@ -1,83 +1,87 @@
 #!/usr/bin/env bash
-#
-# Single validation entrypoint for this project.
-#
-# Humans, agents, git hooks, and CI all run THIS FILE. The project commands below
-# are the only authoritative copy — AGENTS.md points here rather than restating
-# them, so there is nothing to keep in sync.
-#
-# Framework structural checks (check-todo.sh always, check-spec.sh when SPEC.md
-# is APPROVED) are delegated to scripts/check-framework.sh, which fails closed:
-# a required helper that is missing is a failure, not a skip. Executable
-# permission is irrelevant -- helpers are invoked through bash, so a helper
-# present but non-executable still runs and is never treated as absent.
-# validate.sh and complete-phase.sh's Done fast-path both call the same helper
-# so they cannot drift out of sync with each other.
-#
-# Exit codes:
-#   0 = everything configured passed
-#   1 = a configured check failed, or a framework structural check failed
-#   2 = framework checks passed but no project checks are configured
-#
-# Fill in whichever project commands apply below. Leave the rest empty. Not every
-# project has four checks: a Terraform repo has no typecheck, a Python CLI may have
-# no build. An empty variable is skipped, not failed.
+# Single FAST/NORMAL validation entrypoint.
+# Exit 0 = configured validation passed
+# Exit 1 = framework/surface/runtime/project validation failed
+# Exit 2 = pre-scaffold: framework is valid and there are no registered/detected project surfaces yet
 
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/.." || exit 1
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+CONF="$ROOT_DIR/.framework/validation.conf"
+FRAMEWORK="$SCRIPT_DIR/check-framework.sh"
+SURFACES="$SCRIPT_DIR/check-validation-surfaces.sh"
 
-LINT=""
-TYPECHECK=""
-TEST=""
-BUILD=""
+cd "$ROOT_DIR" || exit 1
 
-configured=0
-failed=0
-
-run_step() {
-  local name="$1" cmd="$2"
-  if [ -z "$cmd" ]; then
-    echo "SKIP  $name (not configured)"
-    return 0
-  fi
-  configured=$((configured + 1))
-  echo "RUN   $name: $cmd"
-  if eval "$cmd"; then
-    echo "PASS  $name"
-  else
-    echo "FAIL  $name"
-    failed=$((failed + 1))
-  fi
-}
-
-if ! bash "$SCRIPT_DIR/check-framework.sh"; then
+if ! bash "$FRAMEWORK"; then
   echo
-  echo "VALIDATION FAILED (framework structural check)"
+  echo "OVERALL: FAIL (framework integrity)"
   exit 1
 fi
 
 echo
-echo "--- Project checks ---"
-
-run_step lint      "$LINT"
-run_step typecheck "$TYPECHECK"
-run_step test      "$TEST"
-run_step build     "$BUILD"
-
-echo
-
-if [ "$failed" -gt 0 ]; then
-  echo "VALIDATION FAILED"
+SURFACE_OUTPUT="$(mktemp "${TMPDIR:-/tmp}/surface-check.XXXXXX")"
+trap 'rm -f "$SURFACE_OUTPUT"' EXIT HUP INT TERM
+if ! bash "$SURFACES" >"$SURFACE_OUTPUT" 2>&1; then
+  cat "$SURFACE_OUTPUT"
+  echo "OVERALL: FAIL (validation surface coverage)"
   exit 1
 fi
+cat "$SURFACE_OUTPUT"
+DETECTED="$(awk -F= '/^DETECTED_SURFACES=/{print $2}' "$SURFACE_OUTPUT")"
+REGISTERED="$(awk -F= '/^REGISTERED_SURFACES=/{print $2}' "$SURFACE_OUTPUT")"
 
-if [ "$configured" -eq 0 ]; then
-  echo "WARNING: no project validation commands configured. Framework structural"
-  echo "checks passed, but there is no deterministic gate on the code itself."
-  echo "Fill in scripts/validate.sh before claiming any phase complete."
+if [[ "${REGISTERED:-0}" -eq 0 && "${DETECTED:-0}" -eq 0 ]]; then
+  echo
+  echo "FRAMEWORK: PASS"
+  echo "PROJECT SURFACES: NONE DETECTED"
+  echo "PROJECT VALIDATION: NOT CONFIGURED"
+  echo "OVERALL: PRE-SCAFFOLD"
   exit 2
 fi
 
-echo "VALIDATION PASSED ($configured project check(s), framework checks included)"
+failed=0
+configured_steps=0
+
+echo
+echo "--- Registered project surfaces ---"
+
+while IFS='|' read -r name path runtime lint typecheck test build; do
+  [[ -n "$name" ]] || continue
+  case "$name" in \#*) continue;; esac
+  if [[ ! -d "$ROOT_DIR/$path" ]]; then
+    echo "FAIL  $name path does not exist: $path"
+    failed=$((failed+1))
+    continue
+  fi
+  echo "SURFACE $name ($path)"
+  cd "$ROOT_DIR/$path" || { failed=$((failed+1)); cd "$ROOT_DIR"; continue; }
+  for pair in "runtime|$runtime" "lint|$lint" "typecheck|$typecheck" "test|$test" "build|$build"; do
+    step="${pair%%|*}"; cmd="${pair#*|}"
+    if [[ -z "$cmd" ]]; then
+      echo "SKIP  $name/$step (not applicable)"
+      continue
+    fi
+    configured_steps=$((configured_steps+1))
+    echo "RUN   $name/$step: $cmd"
+    if eval "$cmd"; then echo "PASS  $name/$step"; else echo "FAIL  $name/$step"; failed=$((failed+1)); fi
+  done
+  cd "$ROOT_DIR" || exit 1
+done < "$CONF"
+
+echo
+if [[ "$failed" -gt 0 ]]; then
+  echo "PROJECT VALIDATION: FAIL"
+  echo "OVERALL: FAIL"
+  exit 1
+fi
+if [[ "$configured_steps" -eq 0 ]]; then
+  echo "PROJECT VALIDATION: FAIL (registered surfaces have no executable checks)"
+  echo "OVERALL: FAIL"
+  exit 1
+fi
+
+echo "FRAMEWORK: PASS"
+echo "PROJECT VALIDATION: PASS ($configured_steps configured check(s))"
+echo "OVERALL: PASS"
 exit 0

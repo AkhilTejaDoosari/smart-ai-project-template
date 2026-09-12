@@ -1,0 +1,2 @@
+# Repository-relative executable-surface roots intentionally excluded from normal validation.
+# One path per line. Use only when the surface is genuinely outside this project's validation contract.

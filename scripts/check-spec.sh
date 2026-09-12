@@ -1,616 +1,141 @@
 #!/usr/bin/env bash
-#
-# SPEC.md mechanical approval-readiness / approved-integrity checker.
-#
-# Contract marker:
-#   CHECK_SPEC_CONTRACT_VERSION=1
-#
-# Usage:
-#   bash scripts/check-spec.sh
-#
-# DRAFT:
-#   non-zero means "not ready for approval yet", not a project build failure.
-#
-# APPROVED:
-#   non-zero means the approved specification is mechanically inconsistent.
-#
-# POSIX-awk only: no GNU awk extensions are required.
+# Deterministic SPEC.md approval-readiness / approved-integrity checker.
+# Portable contract: Bash 3.2+ and POSIX awk; no GNU-only sed/grep behavior.
 
 set -euo pipefail
-
-CHECK_SPEC_CONTRACT_VERSION=1
-
+CHECK_SPEC_CONTRACT_VERSION=2
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 SPEC_FILE="$ROOT_DIR/SPEC.md"
 
-[[ -f "$SPEC_FILE" ]] || {
-  printf 'FAIL: missing SPEC.md\n' >&2
-  exit 1
-}
+[[ -f "$SPEC_FILE" ]] || { echo "FAIL: missing SPEC.md" >&2; exit 1; }
 
 set +e
 awk '
-  function trim(s) {
-    sub(/^[[:space:]]+/, "", s)
-    sub(/[[:space:]]+$/, "", s)
-    return s
+function trim(s){sub(/^[[:space:]]+/,"",s);sub(/[[:space:]]+$/, "",s);return s}
+function issue(msg,w){if(w=="")w=1; msgs[++msgc]=msg; errors+=w}
+function money_cents(s,a){split(s,a,/\./); return (a[1]+0)*100+(a[2]+0)}
+function heading_key(line){
+  if(line=="## Template Conventions")return "Template Conventions"
+  if(line=="## Approval")return "Approval"
+  if(line ~ /^## [1-9][0-9]*\. /){x=line; sub(/^## /,"",x); sub(/\..*/,"",x); return x}
+  return ""
+}
+function split_md_row(line,   s,i,c,esc,cell,n,k){
+  for(k in cellv)delete cellv[k]; s=line
+  if(substr(s,1,1)=="|")s=substr(s,2); if(substr(s,length(s),1)=="|")s=substr(s,1,length(s)-1)
+  esc=0;cell="";n=0
+  for(i=1;i<=length(s);i++){
+    c=substr(s,i,1)
+    if(esc){cell=cell c;esc=0;continue}
+    if(c=="\\"){esc=1;continue}
+    if(c=="|"){cellv[++n]=trim(cell);cell=""}else cell=cell c
   }
-
-  function add_issue(msg, weight) {
-    if (weight == "") weight = 1
-    issue_messages[++issue_message_count] = msg
-    outstanding += weight
+  cellv[++n]=trim(cell); return n
+}
+function scan_tbd(s,   token,pos,rest,closep,nextp,doc){
+  scan_complete=0;scan_bad=0;doc="`{{TBD:`"
+  while((pos=index(s,doc))>0)s=substr(s,1,pos-1) substr(s,pos+length(doc))
+  token="{{TBD:"
+  while((pos=index(s,token))>0){
+    rest=substr(s,pos+length(token)); closep=index(rest,"}}"); nextp=index(rest,token)
+    if(closep>0 && (nextp==0 || closep<nextp)){scan_complete++;s=substr(rest,closep+2)}
+    else {scan_bad++; if(nextp>0)s=substr(rest,nextp);else break}
   }
-
-  # Scan placeholder markers on one line.
-  #
-  #   {{TBD: description}}  -> complete placeholder
-  #   {{TBD: description    -> malformed / unterminated marker
-  #   `{{TBD:`              -> documentation reference; intentionally ignored
-  #
-  # Real placeholders never span lines. Counting is occurrence-based rather than
-  # line-based, so multiple placeholders on one line are counted separately.
-  #
-  # Results are returned through scan_complete_tbd and scan_unterminated_tbd.
-  function scan_tbd_markers(s,    doc_ref, token, pos, rest, close_pos, next_pos) {
-    scan_complete_tbd = 0
-    scan_unterminated_tbd = 0
-
-    # Remove the one allowed bare documentation form before scanning.
-    doc_ref = "`{{TBD:`"
-    while ((pos = index(s, doc_ref)) > 0)
-      s = substr(s, 1, pos - 1) substr(s, pos + length(doc_ref))
-
-    token = "{{TBD:"
-
-    while ((pos = index(s, token)) > 0) {
-      rest = substr(s, pos + length(token))
-      close_pos = index(rest, "}}")
-      next_pos = index(rest, token)
-
-      # A closing pair belongs to this marker only when it appears before another
-      # marker starts. Otherwise this marker is malformed and scanning continues.
-      if (close_pos > 0 && (next_pos == 0 || close_pos < next_pos)) {
-        scan_complete_tbd++
-        s = substr(rest, close_pos + length("}}"))
-      } else {
-        scan_unterminated_tbd++
-
-        if (next_pos > 0)
-          s = substr(rest, next_pos)
-        else
-          break
-      }
+}
+function req_id(line, x,a){x=line;sub(/^- `/,"",x);split(x,a,/`/);return a[1]}
+function ac_id(line,x,a){x=line;sub(/^### /,"",x);split(x,a,/ - | — /);return a[1]}
+function parse_satisfies(line,ac,  s,n,a,i,t){
+  s=line;sub(/^\*\*Satisfies:\*\*[[:space:]]*/,"",s);gsub(/`|,/," ",s);n=split(s,a,/[[:space:]]+/)
+  for(i=1;i<=n;i++){t=trim(a[i]);if(t~/^(REQ|NFR)-[0-9]+$/){ac_req[ac SUBSEP t]=1; covered[t]=1; sats_valid[ac]++}}
+}
+BEGIN{
+  required["Template Conventions"]=1;for(i=1;i<=15;i++)required[i]=1;required["Approval"]=1
+}
+{
+  scan_tbd($0); tbd+=scan_complete; bad_tbd+=scan_bad
+}
+/^## /{
+  k=heading_key($0); if(k!=""){heads[k]++; section=(k~/^[0-9]+$/)?k+0:(k=="Approval"?100:-1)}else section=-2
+  current_ac=""; next
+}
+/^### /{
+  if(section>=9 && section<=13)subheads[section]++
+  if(section==4 && $0~/^### AC-[0-9]+ ([-—]) /){current_ac=ac_id($0); ac_count[current_ac]++; acs[current_ac]=1; next}
+  if(section==4)current_ac=""
+  next
+}
+section==1 && /^\*\*Status:\*\*/{status_n++; x=$0;sub(/^\*\*Status:\*\*[[:space:]]*/,"",x);status=x;next}
+section==1 && /^\*\*Spec revision:\*\*/{rev_n++;x=$0;sub(/^\*\*Spec revision:\*\*[[:space:]]*/,"",x);rev=x;next}
+section==1 && /^\*\*Entry:\*\*/{entry_n++;x=$0;sub(/^\*\*Entry:\*\*[[:space:]]*/,"",x);entry=x;next}
+section==1 && /^\*\*Rigor:\*\*/{rigor_n++;x=$0;sub(/^\*\*Rigor:\*\*[[:space:]]*/,"",x);rigor=x;next}
+section==1 && /^\*\*Monthly budget USD:\*\*/{budget_n++;x=$0;sub(/^\*\*Monthly budget USD:\*\*[[:space:]]*/,"",x);budget=x;next}
+section>=9 && section<=13 && /^\*\*Applicability:\*\*/{app_n[section]++;x=$0;sub(/^\*\*Applicability:\*\*[[:space:]]*/,"",x);app[section]=x;next}
+section==3 && /^- `REQ-[0-9]+` - |^- `REQ-[0-9]+` — /{id=req_id($0);reqs[id]=1;req_count[id]++;next}
+section==3 && /^- `NFR-[0-9]+` - |^- `NFR-[0-9]+` — /{id=req_id($0);reqs[id]=1;req_count[id]++;next}
+section==4 && current_ac!="" && /^\*\*Satisfies:\*\*/{sats_n[current_ac]++;parse_satisfies($0,current_ac);next}
+section==4 && current_ac!="" && /^\*\*Required proof:\*\*/{
+  proof_n[current_ac]++;x=$0;sub(/^\*\*Required proof:\*\*[[:space:]]*/,"",x);proof[current_ac]=x;next
+}
+section==15 && /^\*\*State:\*\*/{oq_state_n++;x=$0;sub(/^\*\*State:\*\*[[:space:]]*/,"",x);oq_state=x;next}
+section==15 && /^- \[ \]/{if(index($0,"{{TBD:")==0)open_q++;next}
+section==10 && /^\|/{
+  n=split_md_row($0)
+  if(n==10 && cellv[1]=="Service" && cellv[2]=="Need" && cellv[3]=="Production Provider" && cellv[4]=="Automated Test Provider" && cellv[5]=="Required Final State" && cellv[6]=="Free Tier / Limit" && cellv[7]=="Estimated Monthly Cost USD" && cellv[8]=="Variable-Cost Risk" && cellv[9]=="Pricing Notes" && cellv[10]=="Alternative"){svc_header++;next}
+  sep=1;for(i=1;i<=n;i++)if(cellv[i]!~/^:?-+:?$/)sep=0;if(sep){svc_sep++;next}
+  svc_rows++;svc_cols[svc_rows]=n;for(i=1;i<=n;i++)svc[svc_rows SUBSEP i]=cellv[i];svc_name_count[trim(cellv[1])]++;next
+}
+END{
+  if(tbd>0)issue(tbd " complete {{TBD: ... }} placeholder(s) remain",tbd)
+  if(bad_tbd>0)issue(bad_tbd " unterminated placeholder marker(s) remain",bad_tbd)
+  for(k in required){if(heads[k]!=1)issue("required top-level heading must appear exactly once: " k)}
+  if(status_n!=1 || (status!="DRAFT" && status!="APPROVED"))issue("§1 Status must appear exactly once and be DRAFT or APPROVED")
+  if(rev_n!=1 || rev!~/^[0-9]+$/)issue("§1 Spec revision must be a non-negative integer")
+  if(entry_n!=1)issue("§1 Entry must appear exactly once"); else if(index(entry,"{{TBD:")==0 && entry!="NEW" && entry!="ADOPT")issue("§1 Entry must be NEW or ADOPT")
+  if(rigor_n!=1)issue("§1 Rigor must appear exactly once"); else if(index(rigor,"{{TBD:")==0 && rigor!="LEAN" && rigor!="STANDARD" && rigor!="STRICT")issue("§1 Rigor must be LEAN, STANDARD, or STRICT")
+  if(budget_n!=1 || budget!~/^[0-9]+\.[0-9][0-9]$/)issue("§1 Monthly budget USD must use two decimal places")
+  if(status=="APPROVED" && rev~/^[0-9]+$/ && rev+0<1)issue("APPROVED SPEC cannot have Spec revision 0")
+  for(i=9;i<=13;i++){
+    if(app_n[i]!=1)issue("§" i " must contain exactly one Applicability field"); else if(index(app[i],"{{TBD:")==0 && app[i]!="YES" && app[i]!="N/A")issue("§" i " Applicability must be YES or N/A")
+    if(app[i]=="N/A" && subheads[i]>0)issue("§" i " is N/A but still contains ### subsection content")
+  }
+  for(id in req_count)if(req_count[id]>1)issue("duplicate requirement ID: " id)
+  for(ac in acs){
+    if(ac_count[ac]>1)issue("duplicate acceptance criterion ID: " ac)
+    if(sats_n[ac]!=1 || sats_valid[ac]<1)issue(ac " must contain exactly one Satisfies line with at least one REQ/NFR ID")
+    if(proof_n[ac]!=1)issue(ac " must contain exactly one Required proof field")
+    else if(index(proof[ac],"{{TBD:")==0){
+      p=proof[ac];gsub(/[[:space:]]/,"",p); n=split(p,a,/,/); if(n<1)issue(ac " Required proof is empty")
+      for(i=1;i<=n;i++)if(a[i]!="NORMAL"&&a[i]!="SMOKE"&&a[i]!="LIVE"&&a[i]!="MANUAL")issue(ac " has invalid Required proof class: " a[i])
     }
   }
-
-  function money_cents(s,    parts) {
-    split(s, parts, /\./)
-    return (parts[1] + 0) * 100 + (parts[2] + 0)
-  }
-
-  function heading_key(line,    k) {
-    if (line == "## Template Conventions") return "Template Conventions"
-    if (line == "## 1. Project Controls") return "1"
-    if (line == "## 2. Product") return "2"
-    if (line == "## 3. Requirements") return "3"
-    if (line == "## 4. Acceptance Criteria") return "4"
-    if (line == "## 5. Out of Scope") return "5"
-    if (line == "## 6. Constraints") return "6"
-    if (line == "## 7. Architecture") return "7"
-    if (line == "## 8. Repository Shape") return "8"
-    if (line == "## 9. Data and State") return "9"
-    if (line == "## 10. External Services and Dependencies") return "10"
-    if (line == "## 11. UX / Design") return "11"
-    if (line == "## 12. Security") return "12"
-    if (line == "## 13. Deployment and Operations") return "13"
-    if (line == "## 14. Important Decisions") return "14"
-    if (line == "## 15. Open Questions") return "15"
-    if (line == "## Approval") return "Approval"
-    return ""
-  }
-
-  function section_number_from_key(k) {
-    if (k ~ /^[0-9]+$/) return k + 0
-    return 0
-  }
-
-  function is_conditional_section(n) {
-    return (n >= 9 && n <= 13)
-  }
-
-  function extract_requirement_id(line,    s, a) {
-    s = line
-    sub(/^- `/, "", s)
-    split(s, a, /`/)
-    return a[1]
-  }
-
-  function extract_ac_id(line,    s, a) {
-    s = line
-    sub(/^### /, "", s)
-    split(s, a, / — /)
-    return a[1]
-  }
-
-  function parse_satisfies(line, ac,    s, n, parts, i, token, found) {
-    s = line
-    sub(/^\*\*Satisfies:\*\*[[:space:]]*/, "", s)
-    gsub(/`/, "", s)
-    gsub(/,/, " ", s)
-    n = split(s, parts, /[[:space:]]+/)
-    found = 0
-
-    for (i = 1; i <= n; i++) {
-      token = trim(parts[i])
-      if (token ~ /^(REQ|NFR)-[0-9]+$/) {
-        found++
-        pair = ac SUBSEP token
-        if (!ac_ref[pair])
-          ac_ref_order[++ac_ref_count] = pair
-        ac_ref[pair] = 1
-        req_covered[token] = 1
-      }
+  for(pair in ac_req){split(pair,a,SUBSEP);if(!reqs[a[2]])issue(a[1] " references missing requirement " a[2])}
+  for(id in reqs)if(!covered[id])issue(id " lacks AC coverage")
+  if(oq_state_n!=1)issue("§15 State must appear exactly once"); else if(index(oq_state,"{{TBD:")==0 && oq_state!="OPEN"&&oq_state!="CLEAR")issue("§15 State must be OPEN or CLEAR")
+  if(oq_state=="CLEAR" && open_q>0)issue("§15 is CLEAR but unchecked questions remain")
+  if(status=="APPROVED" && oq_state!="CLEAR")issue("APPROVED SPEC requires §15 State: CLEAR")
+  if(app[10]=="YES"){
+    if(svc_header!=1)issue("§10 service table must contain the canonical 10-column header")
+    if(svc_sep<1)issue("§10 service table separator is missing")
+    if(svc_rows<1)issue("§10 is applicable but contains no service row")
+    for(name in svc_name_count)if(name!=""&&svc_name_count[name]>1)issue("§10 contains duplicate Service name: " name)
+    for(r=1;r<=svc_rows;r++){
+      if(svc_cols[r]!=10){issue("§10 service row " r " must contain exactly 10 columns");continue}
+      for(c=1;c<=6;c++)if(trim(svc[r SUBSEP c])=="")issue("§10 service row " r " has an empty required field in column " c)
+      if(trim(svc[r SUBSEP 10])=="")issue("§10 service row " r " is missing Alternative")
+      state=trim(svc[r SUBSEP 5]); if(state!="IMPLEMENTED"&&state!="TESTED"&&state!="LIVE VERIFIED")issue("§10 service row " r " has invalid Required Final State")
+      cost=trim(svc[r SUBSEP 7]);if(cost!~/^[0-9]+\.[0-9][0-9]$/)issue("§10 service row " r " cost must use two decimal places");else total+=money_cents(cost)
+      risk=trim(svc[r SUBSEP 8]);notes=trim(svc[r SUBSEP 9]);if(risk!="LOW"&&risk!="MEDIUM"&&risk!="HIGH")issue("§10 service row " r " Variable-Cost Risk must be LOW, MEDIUM, or HIGH");else if((risk=="MEDIUM"||risk=="HIGH")&&notes=="")issue("§10 service row " r " requires Pricing Notes for " risk " risk")
     }
-
-    return found
+    if(budget~/^[0-9]+\.[0-9][0-9]$/ && total>money_cents(budget))issue("summed external-service cost exceeds Monthly budget USD")
   }
-
-  # Split a markdown row while respecting escaped pipes (\|).
-  # Returns the number of cells in mdcell[1..N].
-  function split_md_row(line,    s, i, c, nextc, cell, count, escaped, k) {
-    for (k in mdcell) delete mdcell[k]
-    s = line
-
-    if (substr(s, 1, 1) == "|") s = substr(s, 2)
-    if (substr(s, length(s), 1) == "|") s = substr(s, 1, length(s) - 1)
-
-    cell = ""
-    count = 0
-    escaped = 0
-
-    for (i = 1; i <= length(s); i++) {
-      c = substr(s, i, 1)
-
-      if (escaped) {
-        if (c == "|") {
-          cell = cell "|"
-        } else {
-          cell = cell "\\" c
-        }
-        escaped = 0
-        continue
-      }
-
-      if (c == "\\") {
-        escaped = 1
-        continue
-      }
-
-      if (c == "|") {
-        mdcell[++count] = trim(cell)
-        cell = ""
-      } else {
-        cell = cell c
-      }
-    }
-
-    if (escaped) cell = cell "\\"
-    mdcell[++count] = trim(cell)
-    return count
+  if(errors){
+    if(status=="DRAFT")print "NOT READY FOR APPROVAL — " errors " item(s) outstanding." > "/dev/stderr"; else print "FAIL: SPEC integrity check found " errors " issue(s)." > "/dev/stderr"
+    for(i=1;i<=msgc;i++)print "  - " msgs[i] > "/dev/stderr"; exit 1
   }
-
-  BEGIN {
-    heading_order[++required_heading_count] = "Template Conventions"
-    heading_order[++required_heading_count] = "1"
-    heading_order[++required_heading_count] = "2"
-    heading_order[++required_heading_count] = "3"
-    heading_order[++required_heading_count] = "4"
-    heading_order[++required_heading_count] = "5"
-    heading_order[++required_heading_count] = "6"
-    heading_order[++required_heading_count] = "7"
-    heading_order[++required_heading_count] = "8"
-    heading_order[++required_heading_count] = "9"
-    heading_order[++required_heading_count] = "10"
-    heading_order[++required_heading_count] = "11"
-    heading_order[++required_heading_count] = "12"
-    heading_order[++required_heading_count] = "13"
-    heading_order[++required_heading_count] = "14"
-    heading_order[++required_heading_count] = "15"
-    heading_order[++required_heading_count] = "Approval"
-
-    for (i = 1; i <= required_heading_count; i++)
-      required_heading[heading_order[i]] = 1
-
-    current_section = 0
-    current_ac = ""
-  }
-
-  {
-    scan_tbd_markers($0)
-    tbd_total += scan_complete_tbd
-    unterminated_tbd_total += scan_unterminated_tbd
-  }
-
-  /^## / {
-    key = heading_key($0)
-
-    if (key != "") {
-      heading_count[key]++
-      current_section = section_number_from_key(key)
-      if (key == "Approval") current_section = 100
-      if (key == "Template Conventions") current_section = -1
-    } else {
-      # Unrecognized top-level headings are not rejected by this checker.
-      # They still terminate the previous numbered section for parsing purposes.
-      current_section = -2
-    }
-
-    current_ac = ""
-    next
-  }
-
-  # Count subsections for the conditional N/A rule.
-  /^### / {
-    if (is_conditional_section(current_section))
-      subsection_count[current_section]++
-
-    if (current_section == 4 && $0 ~ /^### AC-[0-9]+ — /) {
-      current_ac = extract_ac_id($0)
-      if (!ac_exists[current_ac])
-        ac_order[++ac_unique_count] = current_ac
-      ac_heading_count[current_ac]++
-      ac_exists[current_ac] = 1
-      ac_total++
-      next
-    }
-
-    if (current_section == 4)
-      current_ac = ""
-
-    next
-  }
-
-  # Project status is needed only to choose DRAFT-readiness vs APPROVED-integrity output.
-  current_section == 1 && /^\*\*Status:\*\*/ {
-    status_field_count++
-    if ($0 == "**Status:** DRAFT") {
-      spec_status = "DRAFT"
-    } else if ($0 == "**Status:** APPROVED") {
-      spec_status = "APPROVED"
-    } else if (index($0, "{{TBD:") == 0) {
-      status_invalid++
-    }
-    next
-  }
-
-  current_section == 1 && /^\*\*Spec revision:\*\*/ {
-    revision_field_count++
-    revision_raw = $0
-    sub(/^\*\*Spec revision:\*\*[[:space:]]*/, "", revision_raw)
-
-    if (revision_raw ~ /^[0-9]+$/) {
-      revision_valid = 1
-      spec_revision = revision_raw + 0
-    } else if (index($0, "{{TBD:") == 0) {
-      revision_invalid++
-    }
-    next
-  }
-
-  current_section == 1 && /^\*\*Monthly budget USD:\*\*/ {
-    budget_field_count++
-    budget_raw = $0
-    sub(/^\*\*Monthly budget USD:\*\*[[:space:]]*/, "", budget_raw)
-
-    if (budget_raw ~ /^[0-9]+\.[0-9][0-9]$/) {
-      budget_valid = 1
-      budget_cents = money_cents(budget_raw)
-    } else if (index($0, "{{TBD:") == 0) {
-      budget_invalid++
-    }
-    next
-  }
-
-  current_section == 1 && /^\*\*Entry:\*\*/ {
-    entry_field_count++
-    entry_raw = $0
-    sub(/^\*\*Entry:\*\*[[:space:]]*/, "", entry_raw)
-
-    if (entry_raw == "NEW" || entry_raw == "ADOPT") {
-      entry_valid = 1
-    } else if (index($0, "{{TBD:") == 0) {
-      entry_invalid++
-    }
-    next
-  }
-
-  current_section == 1 && /^\*\*Rigor:\*\*/ {
-    rigor_field_count++
-    rigor_raw = $0
-    sub(/^\*\*Rigor:\*\*[[:space:]]*/, "", rigor_raw)
-
-    if (rigor_raw == "LEAN" || rigor_raw == "STANDARD" || rigor_raw == "STRICT") {
-      rigor_valid = 1
-    } else if (index($0, "{{TBD:") == 0) {
-      rigor_invalid++
-    }
-    next
-  }
-
-  # Conditional applicability. A {{TBD: ...}} applicability line is already
-  # represented by the reserved-marker failure, so do not double-report it.
-  is_conditional_section(current_section) && /^\*\*Applicability:\*\*/ {
-    applicability_line_count[current_section]++
-
-    if ($0 == "**Applicability:** YES") {
-      applicability[current_section] = "YES"
-      applicability_valid_count[current_section]++
-    } else if ($0 == "**Applicability:** N/A") {
-      applicability[current_section] = "N/A"
-      applicability_valid_count[current_section]++
-    } else if (index($0, "{{TBD:") == 0) {
-      applicability_invalid[current_section]++
-    }
-    next
-  }
-
-  # Requirements are defined only by the canonical bullets in §3.
-  current_section == 3 && $0 ~ /^- `REQ-[0-9]+` — / {
-    id = extract_requirement_id($0)
-    if (!requirement_exists[id])
-      requirement_order[++requirement_unique_count] = id
-    requirement_count[id]++
-    requirement_exists[id] = 1
-    requirement_kind[id] = "REQ"
-    next
-  }
-
-  current_section == 3 && $0 ~ /^- `NFR-[0-9]+` — / {
-    id = extract_requirement_id($0)
-    if (!requirement_exists[id])
-      requirement_order[++requirement_unique_count] = id
-    requirement_count[id]++
-    requirement_exists[id] = 1
-    requirement_kind[id] = "NFR"
-    next
-  }
-
-  # Each AC owns exactly one Satisfies line mechanically.
-  current_section == 4 && current_ac != "" && /^\*\*Satisfies:\*\*/ {
-    satisfies_count[current_ac]++
-    refs = parse_satisfies($0, current_ac)
-    satisfies_valid_refs[current_ac] += refs
-    next
-  }
-
-  # Open questions: a TBD-backed placeholder is already counted above, so do not
-  # double-count that same fresh-template incompleteness.
-  current_section == 15 && /^- \[ \]/ {
-    if (index($0, "{{TBD:") == 0)
-      unchecked_questions++
-    next
-  }
-
-  # External-services table data rows. Parse rows only inside §10.
-  current_section == 10 && /^\|/ {
-    cols = split_md_row($0)
-
-    # Header row.
-    if (cols == 7 &&
-        mdcell[1] == "Service" &&
-        mdcell[2] == "Need" &&
-        mdcell[3] == "Free Tier / Limit" &&
-        mdcell[4] == "Estimated Monthly Cost USD" &&
-        mdcell[5] == "Variable-Cost Risk" &&
-        mdcell[6] == "Pricing Notes" &&
-        mdcell[7] == "Alternative") {
-      service_header_count++
-      next
-    }
-
-    # Markdown separator row.
-    separator = 1
-    for (i = 1; i <= cols; i++) {
-      c = trim(mdcell[i])
-      if (c !~ /^:?-+:?$/) separator = 0
-    }
-    if (separator) {
-      service_separator_count++
-      next
-    }
-
-    service_row_count++
-    row = service_row_count
-    service_row_cols[row] = cols
-
-    for (i = 1; i <= cols && i <= 7; i++)
-      service_cell[row SUBSEP i] = mdcell[i]
-
-    next
-  }
-
-  END {
-    # Reserved placeholders are the canonical incompleteness token.
-    if (tbd_total > 0)
-      add_issue(tbd_total " complete {{TBD: ... }} placeholder(s) remain", tbd_total)
-    if (unterminated_tbd_total > 0)
-      add_issue(unterminated_tbd_total " unterminated placeholder marker(s) remain", unterminated_tbd_total)
-
-    # Required structural headings: exactly one each.
-    for (i = 1; i <= required_heading_count; i++) {
-      key = heading_order[i]
-      if (heading_count[key] == 0)
-        add_issue("required top-level heading is missing: " key)
-      else if (heading_count[key] > 1)
-        add_issue("required top-level heading appears more than once: " key)
-    }
-
-    # Parser-critical project controls.
-    if (status_field_count != 1)
-      add_issue("§1 must contain exactly one Status field")
-    else if (status_invalid > 0)
-      add_issue("§1 Status must be DRAFT or APPROVED")
-
-    if (revision_field_count != 1)
-      add_issue("§1 must contain exactly one Spec revision field")
-    else if (revision_invalid > 0 || !revision_valid)
-      add_issue("Spec revision must be a non-negative integer")
-
-    if (budget_field_count != 1)
-      add_issue("§1 must contain exactly one Monthly budget USD field")
-    else if (budget_invalid > 0 || !budget_valid)
-      add_issue("Monthly budget USD must match ^[0-9]+\\.[0-9]{2}$")
-
-    if (entry_field_count != 1)
-      add_issue("§1 must contain exactly one Entry field")
-    else if (entry_invalid > 0 || !entry_valid)
-      add_issue("§1 Entry must be NEW or ADOPT")
-
-    if (rigor_field_count != 1)
-      add_issue("§1 must contain exactly one Rigor field")
-    else if (rigor_invalid > 0 || !rigor_valid)
-      add_issue("§1 Rigor must be LEAN, STANDARD, or STRICT")
-
-    # A fresh project starts DRAFT at revision 0; the approval procedure requires
-    # incrementing revision by exactly 1 on every DRAFT-to-APPROVED transition.
-    # An APPROVED spec can therefore never legitimately sit at revision 0 -- that
-    # state means the increment step of approval was skipped.
-    if (spec_status == "APPROVED" && revision_valid && spec_revision < 1)
-      add_issue("§1 Status is APPROVED but Spec revision is 0; approval must increment the revision to at least 1 (see Approval)")
-
-    # Conditional sections 9-13.
-    for (s = 9; s <= 13; s++) {
-      if (applicability_line_count[s] != 1) {
-        add_issue("§" s " must contain exactly one Applicability line")
-      } else if (applicability_invalid[s] > 0) {
-        add_issue("§" s " Applicability must be YES or N/A")
-      } else if (applicability_valid_count[s] == 0) {
-        # A TBD applicability was already counted as a reserved marker.
-      } else if (applicability_valid_count[s] != 1) {
-        add_issue("§" s " must contain exactly one valid Applicability value")
-      }
-
-      if (applicability[s] == "N/A" && subsection_count[s] > 0)
-        add_issue("§" s " is N/A but still contains ### subsection content")
-    }
-
-    if (unchecked_questions > 0)
-      add_issue(unchecked_questions " unchecked question(s) remain in §15", unchecked_questions)
-
-    # Duplicate requirement IDs.
-    for (i = 1; i <= requirement_unique_count; i++) {
-      id = requirement_order[i]
-      if (requirement_count[id] > 1)
-        add_issue("duplicate requirement ID in §3: " id)
-    }
-
-    # Duplicate AC IDs and per-AC Satisfies integrity.
-    for (i = 1; i <= ac_unique_count; i++) {
-      ac = ac_order[i]
-      if (ac_heading_count[ac] > 1)
-        add_issue("duplicate acceptance criterion ID in §4: " ac)
-
-      if (satisfies_count[ac] == 0)
-        add_issue(ac " references no requirement")
-      else if (satisfies_count[ac] > 1)
-        add_issue(ac " contains more than one Satisfies line")
-      else if (satisfies_valid_refs[ac] == 0)
-        add_issue(ac " references no valid REQ-* or NFR-* ID")
-    }
-
-    # Every referenced requirement ID must exist.
-    for (i = 1; i <= ac_ref_count; i++) {
-      pair = ac_ref_order[i]
-      split(pair, pieces, SUBSEP)
-      ac = pieces[1]
-      id = pieces[2]
-      if (!requirement_exists[id])
-        add_issue(ac " references requirement ID that does not exist: " id)
-    }
-
-    # Every REQ/NFR must be covered by at least one AC.
-    for (i = 1; i <= requirement_unique_count; i++) {
-      id = requirement_order[i]
-      if (!req_covered[id])
-        add_issue(id " lacks AC coverage")
-    }
-
-    # §10 service checks apply only when External Services is YES.
-    if (applicability[10] == "YES") {
-      if (service_header_count != 1)
-        add_issue("§10 applicable service table must contain exactly one canonical header")
-      if (service_separator_count < 1)
-        add_issue("§10 applicable service table is missing its separator row")
-      if (service_row_count == 0)
-        add_issue("§10 Applicability is YES but the service table contains no service rows")
-
-      for (row = 1; row <= service_row_count; row++) {
-        if (service_row_cols[row] != 7) {
-          add_issue("§10 service row " row " must contain exactly 7 columns")
-          continue
-        }
-
-        service = trim(service_cell[row SUBSEP 1])
-        need = trim(service_cell[row SUBSEP 2])
-        free_limit = trim(service_cell[row SUBSEP 3])
-        cost = trim(service_cell[row SUBSEP 4])
-        risk = trim(service_cell[row SUBSEP 5])
-        notes = trim(service_cell[row SUBSEP 6])
-        alternative = trim(service_cell[row SUBSEP 7])
-
-        if (service == "") add_issue("§10 service row " row " is missing Service")
-        if (need == "") add_issue("§10 service row " row " is missing Need")
-        if (free_limit == "") add_issue("§10 service row " row " is missing Free Tier / Limit")
-        if (alternative == "") add_issue("§10 service row " row " is missing Alternative")
-
-        if (cost == "") {
-          add_issue("§10 service row " row " is missing Estimated Monthly Cost USD")
-        } else if (cost !~ /^[0-9]+\.[0-9][0-9]$/) {
-          add_issue("§10 service row " row " cost must match ^[0-9]+\\.[0-9]{2}$")
-        } else {
-          service_cost_cents += money_cents(cost)
-        }
-
-        if (risk != "LOW" && risk != "MEDIUM" && risk != "HIGH") {
-          add_issue("§10 service row " row " Variable-Cost Risk must be LOW, MEDIUM, or HIGH")
-        } else if ((risk == "MEDIUM" || risk == "HIGH") && notes == "") {
-          add_issue("§10 service row " row " has " risk " Variable-Cost Risk but empty Pricing Notes")
-        }
-      }
-
-      if (budget_valid && service_cost_cents > budget_cents) {
-        add_issue("summed Estimated Monthly Cost USD exceeds Monthly budget USD")
-      }
-    }
-
-    # Choose message semantics. If Status itself is malformed/missing, use FAIL because
-    # the checker cannot safely classify the file as DRAFT readiness vs approved integrity.
-    if (outstanding > 0) {
-      if (spec_status == "DRAFT") {
-        print "NOT READY FOR APPROVAL — " outstanding " item(s) outstanding." > "/dev/stderr"
-      } else if (spec_status == "APPROVED") {
-        print "FAIL: approved SPEC integrity check found " outstanding " issue(s)." > "/dev/stderr"
-      } else {
-        print "FAIL: SPEC mechanical check found " outstanding " issue(s)." > "/dev/stderr"
-      }
-
-      for (i = 1; i <= issue_message_count; i++)
-        print "  - " issue_messages[i] > "/dev/stderr"
-
-      exit 1
-    }
-
-    print "CHECK_SPEC_CONTRACT_VERSION=1"
-
-    if (spec_status == "DRAFT")
-      print "READY FOR HUMAN APPROVAL — mechanical checks passed."
-    else
-      print "PASS: approved SPEC integrity passed."
-  }
-' "$SPEC_FILE"
-RC=$?
+  print "CHECK_SPEC_CONTRACT_VERSION=2"
+  if(status=="DRAFT")print "READY FOR HUMAN APPROVAL — mechanical checks passed."; else print "PASS: approved SPEC integrity passed."
+}' "$SPEC_FILE"
+rc=$?
 set -e
-
-exit "$RC"
+exit "$rc"

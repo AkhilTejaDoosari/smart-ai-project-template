@@ -1,4 +1,4 @@
-# Smart AI Project Template v2.2.1
+# Smart AI Project Template v2.3.0
 
 **New to this template? Start with [`GETTING_STARTED.md`](./GETTING_STARTED.md)** -
 a narrated, step-by-step walkthrough. This file is the denser architecture
@@ -13,26 +13,49 @@ The template separates **project truth**, **execution state**, **agent policy**,
 ```text
 smart-ai-project-template/
 │
-├── README.md                 ← Human orientation. Explains the template and where information belongs.
-├── CLAUDE.md                 ← Project Claude Code adapter, loaded automatically because it sits at the repository root. Imports AGENTS.md and maps its portable capability needs to installed Claude Code capabilities.
-├── GLOBAL_CLAUDE.example.md  ← Example of a personal `~/.claude/CLAUDE.md`. Not loaded from this repository; copy it to your home directory if you want it.
-├── AGENTS.md                 ← Portable operating policy for coding agents: rules, safety, routing, AUTO/MANUAL behavior, review, validation, and Definition of Done.
-├── SPEC.md                   ← Current approved project truth: requirements, acceptance criteria, architecture, constraints, services, security, deployment, and important decisions.
-├── TODO.md                   ← Current execution truth: phases, Mode, dependencies, revision state, acceptance coverage, tasks, blockers, and AUTO iteration budget.
-├── WORKFLOW.md               ← Reusable multi-step procedures: intake, planning, phase start, MANUAL/AUTO execution, blocking/resume, replanning, completion, and adoption.
-├── TEMPLATE_VERSION          ← Template release number. This release is 2.2.1.
+├── README.md
+├── GETTING_STARTED.md
+├── CLAUDE.md
+├── GLOBAL_CLAUDE.example.md
+├── AGENTS.md
+├── WORKFLOW.md
+├── SPEC.md
+├── TODO.md
+├── EVIDENCE.md              ← current verification truth
+├── TEMPLATE_VERSION         ← 2.3.0
 │
-├── .gitignore                ← Prevents local secrets, credentials, editor noise, dependencies, and build output from being committed.
-├── .env.example              ← Safe environment-variable names and placeholders that may be committed. Never contains real secrets.
+├── .framework/
+│   ├── validation.conf      ← registered normal-validation surfaces + runtime checks
+│   ├── validation-ignore.txt
+│   ├── smoke.conf           ← packaging/deployment smoke gates
+│   └── auto/                ← local durable AUTO executor state (ignored by Git)
 │
-├── .claude/
-│   └── settings.json         ← Permission policy. `deny` blocks secret reads outright; `ask` forces a human prompt for the destructive operations AGENTS.md gates.
+├── scripts/
+│   ├── check-spec.sh
+│   ├── check-todo.sh
+│   ├── check-evidence.sh
+│   ├── check-validation-surfaces.sh
+│   ├── check-framework.sh
+│   ├── approve-spec.sh
+│   ├── auto-state.sh
+│   ├── complete-phase.sh
+│   ├── validate.sh
+│   ├── smoke.sh
+│   └── certify-project.sh
 │
-└── scripts/                  ← Deterministic framework mechanics. These scripts check or transition framework state; they are not project business logic.
-    ├── check-spec.sh         ← Checks SPEC.md structure and approval readiness/integrity.
-    ├── check-todo.sh         ← Checks TODO.md structure and cross-file phase/acceptance/dependency integrity.
-    ├── complete-phase.sh     ← Controlled phase state transition from In Progress to Done after required gates pass.
-    └── validate.sh           ← Single project validation entrypoint. Configure it with the real project's lint/typecheck/test/build commands.
+└── tests/framework/
+    └── run.sh               ← framework lifecycle/self-tests
+```
+
+The central separation is:
+
+```text
+SPEC.md      = what must be true
+TODO.md      = what work is being executed
+EVIDENCE.md  = what has actually been proven
+AGENTS.md    = authority and permanent rules
+WORKFLOW.md  = lifecycle procedures
+scripts/     = deterministic enforcement/state transitions
 ```
 
 ### Local-only file
@@ -71,18 +94,19 @@ repository root as a convention (visible immediately, no reason to hide it in
 |---|---|
 | What are we building? | `SPEC.md` |
 | What behavior must be accepted? | `SPEC.md` acceptance criteria |
-| What architecture/constraints/services are approved? | `SPEC.md` |
-| What phase is being worked on now? | `TODO.md` |
+| What proof class is required? | `SPEC.md` acceptance criteria |
+| What phase is active / blocked / done? | `TODO.md` |
 | Is a phase MANUAL or AUTO? | `TODO.md` |
-| What is blocked, done, or still pending? | `TODO.md` |
+| Is AUTO policy-only or executor-backed? | `TODO.md` |
+| What evidence actually passed? | `EVIDENCE.md` |
+| Has an external integration only been implemented, tested, or live verified? | `EVIDENCE.md` |
 | What must an agent always/must never do? | `AGENTS.md` |
-| How do we perform a recurring multi-step process? | `WORKFLOW.md` |
-| How should Claude Code adapt to this project? | `CLAUDE.md` |
-| What is the deterministic validation command? | `scripts/validate.sh` |
-| What happened historically? | Git history |
-| What should a human read first to understand the template? | `README.md` |
+| How does a lifecycle procedure run? | `WORKFLOW.md` |
+| What is normal validation? | `scripts/validate.sh` + `.framework/validation.conf` |
+| What is packaging/deployment smoke? | `scripts/smoke.sh` + `.framework/smoke.conf` |
+| What happened historically? | Git |
 
-The rule is simple: **one fact, one authoritative home**. `README.md` explains the system but does not become a second copy of project requirements or status.
+One fact should still have one authoritative home.
 
 ## Claude Code layer
 
@@ -102,23 +126,26 @@ SPEC.md + TODO.md            ← current project + execution truth
 WORKFLOW.md                  ← procedures when a multi-step workflow is needed
 ```
 
-For an AUTO phase, Claude Code may use Ralph Loop as the execution engine when available:
+AUTO now has two explicit layers:
 
 ```text
-TODO.md: Mode = AUTO
-        ↓
-AGENTS.md policy + safety boundaries
-        ↓
-Claude capability selected for the work
-        ↓
-ralph-loop (optional executor)
-        ↓
-attempt → validate/verify → inspect → decide → repeat
-        ↓
-stop on success, budget exhaustion, repeated failure, blocker, hard gate, or protected-boundary change
+AUTO POLICY
+  = authority boundaries + stop conditions
+
+AUTO EXECUTOR (optional)
+  = persistent attempt -> validate -> inspect -> decide orchestration
 ```
 
-Ralph Loop does **not** define AUTO and does not override the framework. AUTO is the portable policy; Ralph Loop is only one Claude-specific way to execute bounded autonomous iterations.
+`Mode: AUTO` alone does not claim persistent autonomous execution.
+
+- `AUTO executor: NONE` = policy-only AUTO; no durable iteration count is claimed.
+- an adapter-defined executor such as `ralph-loop` = durable executor-backed AUTO;
+  `scripts/auto-state.sh` accounts attempts mechanically and cumulatively.
+
+Human resume never resets consumed executor iterations. `auto-state.sh resume`
+reactivates the existing ledger after human authorization; a human-approved budget
+increase uses `auto-state.sh rebudget` and preserves consumed iterations. The executor
+cannot rewrite its own acceptance criteria, budget, scope, or completion state.
 
 ## Lifecycle skills - shipped with the template
 
@@ -183,36 +210,64 @@ Do not place project requirements, project status, or project architecture in th
 ## Working model
 
 ```text
-External request / Jira / GitHub issue / user idea
-                    ↓
-                  intake
-                    ↓
-                 SPEC.md
-                    ↓
-                 TODO.md
-                    ↓
-        AGENTS.md chooses constraints/routing
-                    ↓
-             implementation capability
-                    ↓
-       code + tests + project validation
-                    ↓
-         review + acceptance verification
-                    ↓
-          complete-phase.sh → Done
+intake
+  ↓
+SPECIFICATION
+  ↓
+semantic consistency review
+  ↓
+human approval -> approve-spec.sh
+  ↓
+phase planning -> TODO.md + EVIDENCE.md obligations
+  ↓
+execution
+  ↓
+normal validation / smoke / live verification as required
+  ↓
+review
+  ↓
+complete-phase.sh
+  ↓
+commit checkpoint
+  ↓
+next phase
+  ↓
+certify-project.sh
 ```
 
-External trackers are useful inputs and collaboration systems, but `SPEC.md` and `TODO.md` remain the repository's current authoritative truth.
+Normal validation is deliberately separate from packaging/deployment smoke, and
+external integration state is deliberately separate from adapter existence or mocks.
 
 ## First checks
 
 ```bash
 bash scripts/check-spec.sh
 bash scripts/check-todo.sh
+bash scripts/check-evidence.sh
+bash scripts/check-framework.sh
 bash scripts/validate.sh
 ```
 
-A fresh template intentionally has an unfinished `SPEC.md`, and `validate.sh` intentionally warns until real project validation commands are configured. A phase must not be claimed complete until the real project has a deterministic validation gate.
+A fresh template intentionally returns `2` from `validate.sh`:
+
+```text
+FRAMEWORK: PASS
+PROJECT SURFACES: NONE DETECTED
+PROJECT VALIDATION: NOT CONFIGURED
+OVERALL: PRE-SCAFFOLD
+```
+
+That is not a project PASS. Once an executable surface appears, it must be registered
+in `.framework/validation.conf`; otherwise validation fails. Each registered surface
+contains a runtime preflight and at least one real lint/typecheck/test/build command.
+
+Template maintainers also run:
+
+```bash
+bash tests/framework/run.sh
+```
+
+Those self-tests exercise the lifecycle machinery itself rather than project code.
 
 ### Permission policy
 
