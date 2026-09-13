@@ -1,4 +1,4 @@
-# Smart AI Project Template v2.3.0
+# Smart AI Project Template v2.4.0
 
 **New to this template? Start with [`GETTING_STARTED.md`](./GETTING_STARTED.md)** -
 a narrated, step-by-step walkthrough. This file is the denser architecture
@@ -107,6 +107,28 @@ repository root as a convention (visible immediately, no reason to hide it in
 | What happened historically? | Git |
 
 One fact should still have one authoritative home.
+
+
+## Human Terminal
+
+This template ships a shared Claude Code output style at
+`.claude/output-styles/human-terminal.md`.
+
+Human Terminal is designed for fast engineering work:
+
+- routine success is compressed
+- failures, blockers, and important decisions are expanded
+- SPEC, TODO, EVIDENCE, validation, AUTO, cost, and security state are easy to scan
+- genuine human gates are visually obvious
+- `/intake` remains the public project-entry command
+- internal skill, plugin, and capability-routing details stay out of normal user-facing output
+
+The committed `.claude/settings.json` selects `Human Terminal` as the shared
+project default.
+
+Users can still override presentation preferences locally without changing the
+framework or the repository.
+
 
 ## Claude Code layer
 
