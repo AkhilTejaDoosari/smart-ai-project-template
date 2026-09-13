@@ -10,7 +10,7 @@ trap 'rm -rf "$TMP_ROOT"' EXIT HUP INT TERM
 
 ok(){ PASS=$((PASS+1)); printf 'PASS  %s\n' "$1"; }
 bad(){ FAIL=$((FAIL+1)); printf 'FAIL  %s\n' "$1" >&2; }
-expect_rc(){ name="$1" expected="$2"; shift 2; "$@" >/tmp/framework-test.out.$$ 2>&1; rc=$?; rm -f /tmp/framework-test.out.$$; if [[ "$rc" -eq "$expected" ]]; then ok "$name"; else bad "$name (expected rc=$expected got rc=$rc)"; fi; }
+expect_rc(){ name="$1" expected="$2"; shift 2; "$@" >$TMP_ROOT/framework-test.out.$$ 2>&1; rc=$?; rm -f $TMP_ROOT/framework-test.out.$$; if [[ "$rc" -eq "$expected" ]]; then ok "$name"; else bad "$name (expected rc=$expected got rc=$rc)"; fi; }
 expect_contains(){ name="$1" needle="$2"; shift 2; out="$($@ 2>&1)"; rc=$?; if [[ "$rc" -eq 0 && "$out" == *"$needle"* ]]; then ok "$name"; else bad "$name"; printf '%s\n' "$out" >&2; fi; }
 
 make_repo(){

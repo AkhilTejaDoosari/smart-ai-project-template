@@ -35,5 +35,6 @@
       "Bash(docker system prune:*)",
       "Bash(gh repo delete:*)"
     ]
-  }
+  },
+  "outputStyle": "Human Terminal"
 }
